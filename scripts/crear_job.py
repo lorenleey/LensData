@@ -25,5 +25,6 @@ job = {"name": "DirectData", "max_concurrent_runs": 1,
                       {"name": "prefijo", "default": "directdata"}],
        "tasks": tasks}
 destination = Path(__file__).resolve().parents[1] / "jobs" / "directdata.json"
+destination.parent.mkdir(parents=True, exist_ok=True)
 destination.write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
 print(destination)
