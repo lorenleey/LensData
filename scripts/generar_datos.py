@@ -5,7 +5,7 @@ from pathlib import Path
 
 rng = random.Random(750)
 inicio = date(2026, 11, 1)
-carpeta = Path("data/sample")
+carpeta = Path(__file__).resolve().parent.parent / "data" / "sample"
 campos = ["plataforma", "video_id", "fecha_medicion", "version_origen",
           "reproducciones", "me_gusta", "comentarios", "compartidos"]
 vistas = [0] * 40
