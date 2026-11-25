@@ -55,6 +55,12 @@ Los resultados proceden de las salidas guardadas de los notebooks y las capturas
 | [`01_ingestar_publicaciones.ipynb`](notebooks/bronze/01_ingestar_publicaciones.ipynb) | Carga de publicaciones en Bronze |
 | [`02_ingestar_mediciones.ipynb`](notebooks/bronze/02_ingestar_mediciones.ipynb) | Ingesta incremental de mediciones |
 | [`01_transformar_silver.ipynb`](notebooks/silver/01_transformar_silver.ipynb) | Tipado, reglas de calidad y rechazos |
-| [`02_resolver_versiones.ipynb`](notebooks/silver/02_resolver_versiones.ipynb) | Pruebas de reenvío, corrección y conflicto |
+| [`test_versiones.ipynb`](tests/test_versiones.ipynb) | Pruebas de reenvío, corrección y conflicto |
 | [`scripts/generar_datos.py`](scripts/generar_datos.py) | Generación reproducible de la muestra |
 | [`desarrollo.md`](desarrollo.md) | Desarrollo y evidencias de las ejecuciones |
+
+## Ejecución y pruebas
+
+Ejecutar los notebooks de Bronze en orden y después `notebooks/silver/01_transformar_silver.ipynb`. Los notebooks de `tests/` son comprobaciones manuales con Spark y no forman parte del pipeline. La resolución de versiones todavía no persiste las candidatas; MERGE y Gold quedan pendientes.
+
+Consulta el [contrato de calidad](docs/calidad_datos.md), el [diseño técnico](docs/arquitectura.md) y la [propuesta](docs/propuesta.md).

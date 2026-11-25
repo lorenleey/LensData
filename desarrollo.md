@@ -88,9 +88,9 @@ Se proporciona un `StructType` explícito para los ocho campos. `cloudFiles.sche
 
 ## Fases 04 y 05 · Reglas de calidad y transformación Silver
 
-Definí los esquemas tipados y las reglas en [config/silver.json](config/silver.json). El contrato distingue errores estructurales, rechazos de calidad y advertencias; sus ejemplos y decisiones están en [tarea04_reglas_silver.md](docs/tarea04_reglas_silver.md). En [silver_quality.py](scripts/silver_quality.py) utilicé `try_cast` para fechas, versión y métricas, con separación de filas válidas y rechazadas sin modificar Bronze.
+Definí los esquemas tipados y las reglas en [config/silver.json](config/silver.json). El contrato distingue errores estructurales, rechazos de calidad y advertencias; sus ejemplos y decisiones están en [tarea04_reglas_silver.md](docs/calidad_datos.md). En [silver_quality.py](scripts/silver_quality.py) utilicé `try_cast` para fechas, versión y métricas, con separación de filas válidas y rechazadas sin modificar Bronze.
 
-El notebook [01_transformar_silver.ipynb](notebooks/silver/01_transformar_silver.ipynb) leyó las tablas Bronze y escribió las tablas Silver de publicaciones, mediciones y rechazados en `workspace.lensdata_silver`. La captura de configuración muestra las rutas de origen y destino y la de escritura confirma la creación de las tablas derivadas.
+El notebook [01_transformar_silver.ipynb](docs/historico/01_transformar_silver.ipynb) leyó las tablas Bronze y escribió las tablas Silver de publicaciones, mediciones y rechazados en `workspace.lensdata_silver`. La captura de configuración muestra las rutas de origen y destino y la de escritura confirma la creación de las tablas derivadas.
 
 ![Tablas de origen Bronze y destino Silver](img/f10-carpetas-origen-destino-silver.png)
 
@@ -104,7 +104,7 @@ La ejecución guardada contó 40 publicaciones Bronze: 40 válidas y 0 rechazada
 
 La clave de negocio de mediciones es (`plataforma`, `video_id`, `fecha_medicion`). En [deduplicar_mediciones.py](scripts/deduplicar_mediciones.py) agrupé por clave y `version_origen` para distinguir reenvíos idénticos de métricas contradictorias. Una Window Function calcula la versión máxima por clave; otra selecciona una copia representativa cuando las filas son idénticas. El orden de lectura no decide qué versión prevalece.
 
-En la ejecución guardada de [02_resolver_versiones.ipynb](notebooks/silver/02_resolver_versiones.ipynb), las 469 mediciones válidas produjeron **467 candidatas**, **1 reenvío idéntico** y **0 filas en conflicto real**. Para `tiktok/V000/2026-11-01`, el original y el reenvío conservaron v1 con 1000 reproducciones; la candidata fue la corrección v2 con 950 y su `_source_file` de `lote_correccion`.
+En la ejecución guardada de [02_resolver_versiones.ipynb](tests/test_versiones.ipynb), las 469 mediciones válidas produjeron **467 candidatas**, **1 reenvío idéntico** y **0 filas en conflicto real**. Para `tiktok/V000/2026-11-01`, el original y el reenvío conservaron v1 con 1000 reproducciones; la candidata fue la corrección v2 con 950 y su `_source_file` de `lote_correccion`.
 
 ![Original, reenvío y corrección de una misma medición](img/f11-reenvio-correccion.png)
 
@@ -120,4 +120,8 @@ Detecté que el notebook Silver ejecutado reconstruía `workspace.lensdata_silve
 
 También detecté que una advertencia de clave duplicada no impedía aceptar dos publicaciones con la misma clave y que `min(fecha_publicacion)` podía ocultar un conflicto. En [silver_quality.py](scripts/silver_quality.py) eliminé ese mínimo: las copias idénticas quedan fuera del conjunto válido y se registran con `IDENTICAL_PUBLICATION_COPY`; si el contenido difiere, ambas filas se rechazan con `CONFLICTING_PUBLICATION`. Una medición que referencia esa clave recibe `AMBIGUOUS_PUBLICATION`, en vez de una fecha elegida arbitrariamente.
 
-El [notebook Silver validado](notebooks/silver/03_transformar_silver_validado.ipynb) aplica el contrato actualizado sin escribir en `mediciones_vigentes`. El [notebook de prueba](notebooks/silver/04_validar_publicaciones_unicas.ipynb) prepara en memoria una copia idéntica, un conflicto de fecha y una medición de referencia ambigua. **Aún no se han ejecutado** estos dos notebooks en Databricks; las salidas y capturas anteriores corresponden a la ejecución previa, en la que los 40 CSV de publicaciones tenían 40 claves distintas. No modifiqué sus notebooks ejecutados ni sus resultados guardados.
+El [notebook Silver validado](notebooks/silver/01_transformar_silver.ipynb) aplica el contrato actualizado sin escribir en `mediciones_vigentes`. El [notebook de prueba](tests/test_silver_quality.ipynb) prepara en memoria una copia idéntica, un conflicto de fecha y una medición de referencia ambigua. Las salidas guardadas de la transformación validada muestran 40 publicaciones válidas, 469 mediciones válidas y 4 rechazadas; la prueba de publicaciones únicas confirma los tres casos simulados. La reorganización conserva esas salidas y no implica una nueva ejecución.
+
+## Reorganización del repositorio
+
+Los notebooks operativos quedan en `notebooks/` y las comprobaciones manuales en `tests/`. La primera transformación Silver se conserva como evidencia histórica en `docs/historico/`, no como notebook ejecutable. Las imágenes, configuraciones, tablas y checkpoints no cambian. La migración de scripts a un paquete Python se aplaza hasta integrar el MERGE local.

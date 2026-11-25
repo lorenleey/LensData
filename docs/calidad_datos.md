@@ -1,6 +1,6 @@
-# Tarea 4 · Esquemas y reglas de calidad de Silver
+# Contrato de calidad de Silver
 
-> Reglas aprobadas para implementar Silver. Este documento define el contrato; la implementación está en la [tarea 5](tarea05_transformacion_silver.md).
+> Reglas aprobadas para implementar Silver. Este documento define el contrato; la implementación está en la [diseño técnico](arquitectura.md).
 
 ## Base revisada
 

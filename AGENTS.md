@@ -10,7 +10,7 @@ Antes de modificar `README.md`, revisar los README de los proyectos Libris y mod
 - Mantener un diseño limpio con Markdown nativo de GitHub, títulos claros y párrafos breves. Usar emojis con moderación, badges solo para las tecnologías principales, tablas compactas y Mermaid cuando aclaren la arquitectura o el flujo.
 - Presentar con rapidez el problema de negocio, el objetivo, el funcionamiento, el stack, el estado de las fases y los resultados comprobados. Añadir estructura del repositorio, ejecución, documentación y mejoras futuras solo cuando aporten información concreta. No crear secciones vacías ni contenido de relleno.
 - Distinguir funcionalidades implementadas, en desarrollo y planificadas. No presentar expectativas como resultados ni inventar métricas, pruebas o capturas.
-- Enlazar solo capturas reales y representativas, con rutas relativas y texto alternativo descriptivo. Para capturas nuevas, usar `img/faseNN/fNN-descripcion.png`. Las capturas existentes en `img/` se conservan en su ruta actual hasta que se organicen junto con todas sus referencias. Dejar el conjunto detallado de imágenes en `desarrollo.md`.
+- Enlazar solo capturas reales y representativas, con rutas relativas y texto alternativo descriptivo. Conservar las capturas existentes en `img/`. Si se organizan nuevas capturas, usar bloques amplios como `img/entorno/`, `img/bronze/`, `img/silver/` y `img/gold/`, sin carpetas por fase. Dejar el conjunto detallado de imágenes en `desarrollo.md`.
 - Tras cada tarea, actualizar solo las secciones afectadas. Conservar la estructura y evitar que el README crezca con detalles repetidos del proceso.
 
 ## desarrollo.md
