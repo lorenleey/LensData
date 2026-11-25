@@ -1,10 +1,10 @@
 plataforma,video_id,fecha_medicion,version_origen,reproducciones,me_gusta,comentarios,compartidos
 tiktok,V000,2026-11-01,1,1000,50,14,11
 instagram,V000,2026-11-01,1,88,4,1,0
-tiktok,V001,2026-11-01,1,114,5,1,1
+tiktok,V001,2026-11-01,1,114,5,,1
 instagram,V001,2026-11-01,1,40,2,0,0
 tiktok,V002,2026-11-01,1,66,3,0,0
-instagram,V002,2026-11-01,1,124,6,1,1
+instagram,V002,2026-11-01,1,124,6,1,1 
 tiktok,V003,2026-11-01,1,153,7,2,1
 instagram,V003,2026-11-01,1,36,1,0,0
 tiktok,V004,2026-11-01,1,15,0,0,0

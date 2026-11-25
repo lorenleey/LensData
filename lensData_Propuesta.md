@@ -1,10 +1,10 @@
-# DIRECTDATA · Análisis del rendimiento de vídeos de una tienda
+# LENSDATA · Análisis del rendimiento de vídeos de una tienda
 
 **Periodo previsto:** 10 de noviembre – 2 de diciembre de 2026
 
 ## Propuesta
 
-¿Qué categorías de producto generan más interacción en TikTok e Instagram cuando sus vídeos llevan el mismo tiempo publicados? DIRECTDATA dará al equipo de contenidos de una tienda de variedades un panel para explorar esta pregunta y orientar la planificación de sus próximas publicaciones.
+¿Qué categorías de producto generan más interacción en TikTok e Instagram cuando sus vídeos llevan el mismo tiempo publicados? lensData dará al equipo de contenidos de una tienda de variedades un panel para explorar esta pregunta y orientar la planificación de sus próximas publicaciones.
 
 La solución se desarrollará en Databricks Free Edition con una muestra sintética de 40 publicaciones y 12 días de seguimiento. La muestra cubrirá regalos, comida asiática, belleza y juguetes, con cinco publicaciones por categoría en cada plataforma. El panel permitirá consultar la evolución de cada vídeo, comparar categorías dentro de una red y revisar los totales por plataforma.
 

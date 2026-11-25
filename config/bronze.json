@@ -3,6 +3,7 @@
   "schema": "lensdata_bronze",
   "volume": "workspace.lensdata_bronze.archivos",
   "recepcion_path": "/Volumes/workspace/lensdata_bronze/archivos/recepcion",
+  "mediciones_input_dir": "/Volumes/workspace/lensdata_bronze/archivos/recepcion/mediciones",
   "sources": {
     "publicaciones": "/Volumes/workspace/lensdata_bronze/archivos/recepcion/publicaciones/publicaciones.csv",
     "mediciones": "/Volumes/workspace/lensdata_bronze/archivos/recepcion/lote_01/mediciones_2026-11-01.csv"

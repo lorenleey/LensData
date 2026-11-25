@@ -43,8 +43,17 @@ for dia in range(12):
             else:
                 vistas[i] += rng.randint(5, 180)
             plataforma = ("tiktok", "instagram")[i % 2]
-            escritor.writerow([plataforma, f"V{i // 2:03}", fecha, 1, vistas[i],
-                               vistas[i] // 20, vistas[i] // 70, vistas[i] // 90])
+            fila = [plataforma, f"V{i // 2:03}", fecha, 1, vistas[i],
+                    vistas[i] // 20, vistas[i] // 70, vistas[i] // 90]
+            if dia == 0 and i == 2:
+                fila[6] = ""  # valor ausente
+            if dia == 0 and i == 5:
+                fila[7] = f"{fila[7]} "  # espacio final original
+            if dia == 1 and i == 2:
+                fila[6] = "pendiente"  # texto en una métrica
+            if dia == 1 and i == 5:
+                fila[7] = -1  # valor fuera del dominio esperado
+            escritor.writerow(fila)
 
 with (carpeta / "lote_03" / "video_desconocido.csv").open(
     "w", newline="", encoding="utf-8"

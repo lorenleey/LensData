@@ -1,4 +1,4 @@
-# This is a Declarative Automation Bundle definition for directData.
+# This is a Declarative Automation Bundle definition for lensData.
 # The Databricks extension requires databricks.yml configuration file.
 # See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
 
