@@ -5,6 +5,7 @@
   "tables": {
     "publicaciones": "workspace.lensdata_silver.publicaciones",
     "mediciones": "workspace.lensdata_silver.mediciones",
+    "mediciones_vigentes": "workspace.lensdata_silver.mediciones_vigentes",
     "rechazados": "workspace.lensdata_silver.rechazados"
   },
   "normalization": {
@@ -69,7 +70,10 @@
     {"code": "UNKNOWN_VIDEO", "class": "quality_error", "action": "reject"},
     {"code": "MEASUREMENT_BEFORE_PUBLICATION", "class": "quality_error", "action": "reject"},
     {"code": "METRIC_EXCEEDS_VIEWS", "class": "business_warning", "action": "keep"},
-    {"code": "DUPLICATE_BUSINESS_KEY", "class": "business_warning", "action": "keep_for_version_resolution"}
+    {"code": "DUPLICATE_BUSINESS_KEY", "class": "business_warning", "action": "keep_for_version_resolution"},
+    {"code": "CONFLICTING_PUBLICATION", "class": "quality_error", "action": "reject"},
+    {"code": "IDENTICAL_PUBLICATION_COPY", "class": "business_warning", "action": "suppress_in_valid"},
+    {"code": "AMBIGUOUS_PUBLICATION", "class": "quality_error", "action": "reject"}
   ],
   "structural_errors": ["CSV_HEADER_MISMATCH", "CSV_WRONG_FIELD_COUNT", "CSV_UNREADABLE"],
   "rejections": {

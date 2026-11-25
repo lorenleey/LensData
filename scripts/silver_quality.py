@@ -77,25 +77,50 @@ def _finish(df, entity, config):
 def transform_publicaciones(raw, config):
     entity = "publicaciones"
     df = _base_errors(_normalize(raw, entity, config), entity, config)
-    key = [F.col("_typed_plataforma"), F.col("_typed_video_id")]
-    df = df.withColumn("_duplicate_count", F.count(F.lit(1)).over(Window.partitionBy(*key)))
-    df = df.withColumn("_warnings", _issue(F.col("_duplicate_count") > 1, "DUPLICATE_BUSINESS_KEY", "publicaciones"))
+    key = ["_typed_plataforma", "_typed_video_id"]
+    payload = F.to_json(F.struct("_typed_fecha_publicacion", "_typed_categoria", "_typed_titulo"),
+                        {"ignoreNullFields": "false"})
+    df = df.withColumn("_publication_payload", payload)
+    variants = df.groupBy(*key).agg(F.countDistinct("_publication_payload").alias("_publication_variants"))
+    df = df.join(variants, key, "left")
+    conflicts = (df.filter(F.col("_publication_variants") > 1)
+                 .select(F.col("_typed_plataforma").alias("plataforma"),
+                         F.col("_typed_video_id").alias("video_id")).distinct())
+    copies = Window.partitionBy(*key, "_publication_payload").orderBy(F.col("_source_file").asc())
+    df = df.withColumn("_copy_rank", F.row_number().over(copies))
+    df = df.withColumn("_errors", F.concat(
+        F.col("_errors"),
+        _issue(F.col("_publication_variants") > 1, "CONFLICTING_PUBLICATION", "plataforma,video_id"),
+        _issue((F.col("_publication_variants") == 1) & (F.col("_copy_rank") > 1),
+               "IDENTICAL_PUBLICATION_COPY", "plataforma,video_id")))
+    df = df.withColumn("_warnings", _empty())
     accepted, rejected = _finish(df, entity, config)
-    return accepted, rejected
+    return accepted, rejected, conflicts
 
 
-def transform_mediciones(raw, valid_publicaciones, config):
+def transform_mediciones(raw, valid_publicaciones, conflicting_publicaciones, config):
     entity = "mediciones"
     df = _base_errors(_normalize(raw, entity, config), entity, config)
+    if (valid_publicaciones.groupBy("plataforma", "video_id").count()
+            .filter(F.col("count") > 1).limit(1).count()):
+        raise ValueError("La referencia de publicaciones Silver no es única")
     publications = valid_publicaciones.select(
         F.col("plataforma").alias("_pub_platform"), F.col("video_id").alias("_pub_video_id"),
         F.col("fecha_publicacion").alias("_pub_date"),
-    ).groupBy("_pub_platform", "_pub_video_id").agg(F.min("_pub_date").alias("_pub_date"))
+    )
+    ambiguous = conflicting_publicaciones.select(
+        F.col("plataforma").alias("_amb_platform"), F.col("video_id").alias("_amb_video_id"))
     df = df.join(publications,
         (F.col("_typed_plataforma") == F.col("_pub_platform")) &
         (F.col("_typed_video_id") == F.col("_pub_video_id")), "left")
+    df = df.join(ambiguous,
+        (F.col("_typed_plataforma") == F.col("_amb_platform")) &
+        (F.col("_typed_video_id") == F.col("_amb_video_id")), "left")
     df = df.withColumn("_errors", F.concat(F.col("_errors"),
-        _issue(F.col("_typed_plataforma").isNotNull() & F.col("_typed_video_id").isNotNull() & F.col("_pub_video_id").isNull(), "UNKNOWN_VIDEO", "plataforma,video_id"),
+        _issue(F.col("_amb_video_id").isNotNull(), "AMBIGUOUS_PUBLICATION", "plataforma,video_id"),
+        _issue(F.col("_typed_plataforma").isNotNull() & F.col("_typed_video_id").isNotNull() &
+               F.col("_pub_video_id").isNull() & F.col("_amb_video_id").isNull(),
+               "UNKNOWN_VIDEO", "plataforma,video_id"),
         _issue(F.col("_typed_fecha_medicion") < F.col("_pub_date"), "MEASUREMENT_BEFORE_PUBLICATION", "fecha_medicion")))
     metrics = ("me_gusta", "comentarios", "compartidos")
     exceeding = None

@@ -20,7 +20,7 @@ Desde VS Code comprobé las 40 publicaciones, el valor original `Regalos ` y la 
 
 ## Fase 03 · Ingesta de mediciones en Bronze
 
-> Estado: ingesta de lotes 01–03 comprobada manualmente; cierre pendiente de reenvío, corrección, validaciones finales y capturas.
+> Estado observado: 15 CSV cargados en Bronze, incluidos reenvío y corrección.
 
 ### Preparación y funcionamiento
 
@@ -38,6 +38,10 @@ La validación inicial comprobó una cabecera. Tras recibir el lote 03, la búsq
 
 El destino es una tabla Delta en modo append. El checkpoint de `config/bronze.json` guarda el progreso de la consulta para que los archivos ya procesados no se vuelvan a ingerir. `availableNow=True` procesa lo que está disponible y detiene la consulta; después se puede ejecutar de nuevo con el mismo origen y checkpoint. No se limpian checkpoints ni se sobrescriben archivos de entrada.
 
+Comprobé en el volumen que el checkpoint de mediciones contiene `metadata`, `commits`, `offsets` y `sources`.
+
+![Archivos del checkpoint persistente de mediciones](img/f05-checkpoint-creado.png)
+
 La primera carga dejó 40 filas. La captura conserva una ruta inicial en la raíz de `recepcion/mediciones/`; posteriormente organicé las mediciones por lotes. La carga de los lotes 01 y 02 dejó 80 filas, 40 por archivo.
 
 ![Primera carga de 40 mediciones](img/f05-primera-ingesta-bronce.png)
@@ -52,6 +56,12 @@ Tras incorporar los archivos del lote 03, la comparación guardada mostró 471 f
 
 ![Prueba de idempotencia con 471 filas antes y después](img/f08-prueba-idempotencia.png)
 
+Después incorporé `lote_reenvio` y `lote_correccion` en sus propias subcarpetas. La validación recursiva encontró 15 cabeceras correctas. Las comprobaciones de Bronze confirmaron 473 filas, 15 archivos de procedencia y la conservación separada del original, el reenvío, la corrección y `V999`.
+
+![Cabeceras de los 15 CSV, incluidos reenvío y corrección](img/f09-cabeceras-lote-reenvio-correccion.png)
+
+![Comprobaciones de 473 filas y de los archivos de procedencia](img/f09-comprobaciones.png)
+
 ### Pruebas observadas
 
 Estas cifras proceden de las salidas guardadas en el notebook antes de retirar las celdas temporales; no son una nueva ejecución realizada al actualizar esta documentación.
@@ -63,22 +73,51 @@ Estas cifras proceden de las salidas guardadas en el notebook antes de retirar l
 | Conteo Bronze | Salida guardada: 471 filas = 40 + 40 + 10 × 39 + 1 de `video_desconocido.csv`. |
 | Procedencia | Salida guardada: conteos por 13 rutas `_source_file`, incluidas las subcarpetas de los tres lotes. |
 | Repetición sin archivos nuevos | Salida guardada: 471 antes y 471 después; incremento 0. |
-| Reenvío y corrección | Pendientes; no aparecían entre los 13 CSV listados. |
-| Formato Delta | Configurado en la escritura; consulta `DESCRIBE DETAIL` aún pendiente. |
+| Reenvío y corrección | Captura posterior: un archivo de cada lote, 473 filas y 15 rutas en Bronze. |
+| Formato Delta | La escritura usa `.format('delta')`; no consta una consulta `DESCRIBE DETAIL` en estas evidencias. |
 
-El conteo de una fila para `video_desconocido.csv` respalda que Bronze recibió un registro potencialmente inválido. Queda comprobar sus valores directamente en la tabla con el notebook de validación.
+El conteo de una fila para `video_desconocido.csv` y la comprobación posterior respaldan que Bronze conservó `V999`.
 
-### Cierre de reenvío y corrección
-
-1. Copiar `data/sample/lote_reenvio/reenvio_dia_1_v1.csv` a `recepcion/mediciones/lote_reenvio/` y `data/sample/lote_correccion/correccion_dia_1.csv` a `recepcion/mediciones/lote_correccion/`. Mantener ambos nombres y no modificar los CSV ya cargados.
-2. Ejecutar `02_ingestar_mediciones.ipynb`. El resultado **esperado, aún no observado**, es 473 filas: 471 + 1 + 1.
-3. Ejecutar `03_validar_mediciones_bronze.ipynb`, incluida su última celda. Debe mostrar el original, el reenvío y la corrección de `tiktok/V000/2026-11-01` como tres filas distintas; dos tienen `version_origen=1` y una `version_origen=2`. Debe conservar también `V999`.
-4. Repetir la ingesta sin añadir archivos y volver a ejecutar la validación. El total esperado sigue siendo 473. Guardar los conteos de antes y después como evidencia de idempotencia.
-
-Las comprobaciones de esquema, rutas, valores, duplicados y Delta están en el notebook de validación. La ingesta no filtra los valores vacíos, `pendiente`, negativos, duplicados ni claves desconocidas: su tratamiento corresponde a Silver.
+La ingesta no filtró los valores vacíos, `pendiente`, negativos, duplicados ni claves desconocidas: su tratamiento se hizo en Silver. La prueba de idempotencia capturada corresponde al estado de 471 filas, antes de recibir los dos archivos adicionales.
 
 ### `_ingested_at` y `schemaLocation`
 
 No añadí `_ingested_at` a la tabla ya cargada. La forma conservadora de incorporarlo más adelante es parar la consulta, añadir una columna nullable `TIMESTAMP` a la tabla Delta, modificar el stream para proyectar `current_timestamp()` y reanudarlo con **el mismo** checkpoint. Los registros existentes permanecerían y tendrían `NULL` en esa columna; su hora real de ingesta no puede reconstruirse a partir de la hora de una ejecución nueva. Antes de aplicar el cambio, validar en Databricks la compatibilidad de la evolución de esquema con el runtime y hacer una prueba con un archivo nuevo. No se ha ejecutado esta migración.
 
 Se proporciona un `StructType` explícito para los ocho campos. `cloudFiles.schemaLocation` sirve para guardar la información de inferencia y evolución de esquema; no se utiliza en este flujo de esquema fijo y el notebook ya se ejecutó sin esa opción. El checkpoint de escritura sigue siendo obligatorio y persistente. Si se decide permitir evolución de columnas de origen, habrá que definir expresamente esa política y su ubicación de esquema.
+
+## Fases 04 y 05 · Reglas de calidad y transformación Silver
+
+Definí los esquemas tipados y las reglas en [config/silver.json](config/silver.json). El contrato distingue errores estructurales, rechazos de calidad y advertencias; sus ejemplos y decisiones están en [tarea04_reglas_silver.md](docs/tarea04_reglas_silver.md). En [silver_quality.py](scripts/silver_quality.py) utilicé `try_cast` para fechas, versión y métricas, con separación de filas válidas y rechazadas sin modificar Bronze.
+
+El notebook [01_transformar_silver.ipynb](notebooks/silver/01_transformar_silver.ipynb) leyó las tablas Bronze y escribió las tablas Silver de publicaciones, mediciones y rechazados en `workspace.lensdata_silver`. La captura de configuración muestra las rutas de origen y destino y la de escritura confirma la creación de las tablas derivadas.
+
+![Tablas de origen Bronze y destino Silver](img/f10-carpetas-origen-destino-silver.png)
+
+![Creación y escritura de las tablas Silver](img/f10-creacion-SCHEMA-silver.png)
+
+La ejecución guardada contó 40 publicaciones Bronze: 40 válidas y 0 rechazadas. Para mediciones contó 473 Bronze: 469 válidas y 4 rechazadas. Los motivos mostrados fueron `UNKNOWN_VIDEO`, `NEGATIVE_METRIC`, `REQUIRED_FIELD` e `INVALID_NUMBER`, uno de cada uno. La suma de válidas y rechazadas coincide con Bronze en ambas entidades.
+
+![Conteos de Silver y motivos de los cuatro rechazos](img/f10-validacion-rechazos.png)
+
+## Tarea 7 · Deduplicación y resolución de versiones
+
+La clave de negocio de mediciones es (`plataforma`, `video_id`, `fecha_medicion`). En [deduplicar_mediciones.py](scripts/deduplicar_mediciones.py) agrupé por clave y `version_origen` para distinguir reenvíos idénticos de métricas contradictorias. Una Window Function calcula la versión máxima por clave; otra selecciona una copia representativa cuando las filas son idénticas. El orden de lectura no decide qué versión prevalece.
+
+En la ejecución guardada de [02_resolver_versiones.ipynb](notebooks/silver/02_resolver_versiones.ipynb), las 469 mediciones válidas produjeron **467 candidatas**, **1 reenvío idéntico** y **0 filas en conflicto real**. Para `tiktok/V000/2026-11-01`, el original y el reenvío conservaron v1 con 1000 reproducciones; la candidata fue la corrección v2 con 950 y su `_source_file` de `lote_correccion`.
+
+![Original, reenvío y corrección de una misma medición](img/f11-reenvio-correccion.png)
+
+La última celda añadió en memoria una copia v1 tardía y otra v2 con métricas distintas. Las aserciones confirmaron que la v1 tardía no sustituyó a v2 y que el conflicto v2 dejó la clave sin candidata y registró ambas filas con `SAME_KEY_VERSION_DIFFERENT_METRICS`. Este conflicto fue **simulado**; no apareció en las 469 filas Silver reales ni se escribió en ninguna tabla.
+
+![Prueba en memoria de versión tardía y conflicto de versión](img/f11-version-antigua.png)
+
+`dropDuplicates` por clave no bastaría: podría conservar v1 y descartar v2 según la fila encontrada. La regla compara las métricas de cada versión y ordena explícitamente por `version_origen`. La salida de esta tarea permanece como DataFrame de solo lectura; no se ha ejecutado `MERGE`.
+
+## Revisión técnica previa a la tarea 8
+
+Detecté que el notebook Silver ejecutado reconstruía `workspace.lensdata_silver.mediciones` con `overwrite`. La conservo como tabla **intermedia de mediciones válidas** y reservé `workspace.lensdata_silver.mediciones_vigentes` como destino distinto para una futura actualización incremental. Ninguna de las comprobaciones de esta revisión creó o modificó esa tabla definitiva.
+
+También detecté que una advertencia de clave duplicada no impedía aceptar dos publicaciones con la misma clave y que `min(fecha_publicacion)` podía ocultar un conflicto. En [silver_quality.py](scripts/silver_quality.py) eliminé ese mínimo: las copias idénticas quedan fuera del conjunto válido y se registran con `IDENTICAL_PUBLICATION_COPY`; si el contenido difiere, ambas filas se rechazan con `CONFLICTING_PUBLICATION`. Una medición que referencia esa clave recibe `AMBIGUOUS_PUBLICATION`, en vez de una fecha elegida arbitrariamente.
+
+El [notebook Silver validado](notebooks/silver/03_transformar_silver_validado.ipynb) aplica el contrato actualizado sin escribir en `mediciones_vigentes`. El [notebook de prueba](notebooks/silver/04_validar_publicaciones_unicas.ipynb) prepara en memoria una copia idéntica, un conflicto de fecha y una medición de referencia ambigua. **Aún no se han ejecutado** estos dos notebooks en Databricks; las salidas y capturas anteriores corresponden a la ejecución previa, en la que los 40 CSV de publicaciones tenían 40 claves distintas. No modifiqué sus notebooks ejecutados ni sus resultados guardados.
