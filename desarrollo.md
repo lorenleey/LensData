@@ -1,5 +1,23 @@
 # Desarrollo · LensData
 
+## Preparación del entorno y publicaciones
+
+Preparé el entorno Python y el kernel local para ejecutar notebooks desde VS Code.
+
+![Instalación del entorno y registro del kernel de LensData](img/create-kernel.png)
+
+Comprobé el acceso al CSV de publicaciones desde el volumen. Esta captura refleja la organización inicial de recepción, anterior a la carpeta definitiva de mediciones.
+
+![Acceso a los archivos de recepción desde Databricks](img/f02-acceso-archivos.png)
+
+Leí el CSV y revisé sus columnas y primeras filas. Esta lectura fue exploratoria; el notebook Bronze usa el esquema de cadenas de `bronze.json`.
+
+![Lectura exploratoria del CSV de publicaciones](img/f03-lectura-csv-esquema.png)
+
+Desde VS Code comprobé las 40 publicaciones, el valor original `Regalos ` y la procedencia. En esta ejecución, `_source_file` muestra la ruta del volumen con prefijo `dbfs:`.
+
+![Comprobaciones de publicaciones Bronze desde VS Code](img/f04-comprobaciones-notebook-vs.png)
+
 ## Fase 03 · Ingesta de mediciones en Bronze
 
 > Estado: ingesta de lotes 01–03 comprobada manualmente; cierre pendiente de reenvío, corrección, validaciones finales y capturas.
@@ -8,9 +26,31 @@
 
 Trabajé desde VS Code con Databricks Connect para ejecutar celdas en el entorno remoto de Databricks. Esta conexión permite editar el notebook localmente y usar `spark` contra los recursos del workspace; no convierte los CSV locales en archivos del volumen. Por ello, cada lote debe copiarse al volumen `workspace.lensdata_bronze.archivos` bajo `recepcion/mediciones/<nombre_del_lote>/`.
 
+![Configuración de rutas del notebook desde VS Code](img/f04-path-databricks-vs.png)
+
 El notebook de ingesta lee [bronze.json](config/bronze.json), recorre las subcarpetas mediante `dbutils.fs.ls` y `entry.path.endswith('/')`, y valida cada cabecera contra el esquema configurado. Auto Loader es la fuente `cloudFiles` de Structured Streaming. Lee los CSV de forma recursiva, mantiene los campos de origen como `string` y añade `_source_file` desde `_metadata.file_path`.
 
+La validación inicial comprobó una cabecera. Tras recibir el lote 03, la búsqueda recursiva verificó 13 CSV.
+
+![Comprobación inicial de cabecera CSV](img/f05-comprobacion-cabeceras.png)
+
+![Cabeceras de los 13 CSV recibidos](img/f07-carga-cabeceras-lote-03.png)
+
 El destino es una tabla Delta en modo append. El checkpoint de `config/bronze.json` guarda el progreso de la consulta para que los archivos ya procesados no se vuelvan a ingerir. `availableNow=True` procesa lo que está disponible y detiene la consulta; después se puede ejecutar de nuevo con el mismo origen y checkpoint. No se limpian checkpoints ni se sobrescriben archivos de entrada.
+
+La primera carga dejó 40 filas. La captura conserva una ruta inicial en la raíz de `recepcion/mediciones/`; posteriormente organicé las mediciones por lotes. La carga de los lotes 01 y 02 dejó 80 filas, 40 por archivo.
+
+![Primera carga de 40 mediciones](img/f05-primera-ingesta-bronce.png)
+
+![Conteos por archivo tras cargar los lotes 01 y 02](img/f05-carga-incremental.png)
+
+![Incremento de 40 a 80 filas](img/f06-totales-comparados.png)
+
+Tras incorporar los archivos del lote 03, la comparación guardada mostró 471 filas. Repetí la carga sin archivos nuevos y el total siguió siendo 471.
+
+![Conteos tras incorporar el lote 03](img/f07-totales-comparados.png)
+
+![Prueba de idempotencia con 471 filas antes y después](img/f08-prueba-idempotencia.png)
 
 ### Pruebas observadas
 
@@ -18,7 +58,7 @@ Estas cifras proceden de las salidas guardadas en el notebook antes de retirar l
 
 | Comprobación | Resultado observado |
 |---|---|
-| Conexión Databricks Connect | La usuaria indica que la validó manualmente desde VS Code. |
+| Conexión Databricks Connect | Validé manualmente la conexión desde VS Code. |
 | Cabeceras y descubrimiento recursivo | Salida guardada: 13 CSV verificados bajo los lotes 01, 02 y 03. |
 | Conteo Bronze | Salida guardada: 471 filas = 40 + 40 + 10 × 39 + 1 de `video_desconocido.csv`. |
 | Procedencia | Salida guardada: conteos por 13 rutas `_source_file`, incluidas las subcarpetas de los tres lotes. |
@@ -42,17 +82,3 @@ Las comprobaciones de esquema, rutas, valores, duplicados y Delta están en el n
 No añadí `_ingested_at` a la tabla ya cargada. La forma conservadora de incorporarlo más adelante es parar la consulta, añadir una columna nullable `TIMESTAMP` a la tabla Delta, modificar el stream para proyectar `current_timestamp()` y reanudarlo con **el mismo** checkpoint. Los registros existentes permanecerían y tendrían `NULL` en esa columna; su hora real de ingesta no puede reconstruirse a partir de la hora de una ejecución nueva. Antes de aplicar el cambio, validar en Databricks la compatibilidad de la evolución de esquema con el runtime y hacer una prueba con un archivo nuevo. No se ha ejecutado esta migración.
 
 Se proporciona un `StructType` explícito para los ocho campos. `cloudFiles.schemaLocation` sirve para guardar la información de inferencia y evolución de esquema; no se utiliza en este flujo de esquema fijo y el notebook ya se ejecutó sin esa opción. El checkpoint de escritura sigue siendo obligatorio y persistente. Si se decide permitir evolución de columnas de origen, habrá que definir expresamente esa política y su ubicación de esquema.
-
-### Capturas pendientes en `img/fase03/`
-
-No existe todavía ninguna captura en esa carpeta. Guardar capturas reales y legibles de:
-
-- La conexión o ejecución remota desde VS Code, sin credenciales.
-- La estructura del volumen con `lote_01`, `lote_02`, `lote_03`, `lote_reenvio` y `lote_correccion`.
-- La validación de cabeceras y la lista recursiva de archivos.
-- Los conteos por `_source_file` y el total antes y después de reenvío y corrección.
-- La fila `V999` y las tres filas de `tiktok/V000/2026-11-01`.
-- `DESCRIBE DETAIL` con `format=delta`.
-- La repetición sin nuevos archivos con el mismo total antes y después.
-
-No se han creado capturas ni se ha ejecutado de nuevo Databricks durante esta revisión.

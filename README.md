@@ -1,19 +1,52 @@
-# LensData
+# LensData · análisis del rendimiento de vídeos
 
-Análisis del rendimiento de vídeos de una tienda ficticia en Databricks. La fase actual carga publicaciones y mediciones en Bronze; Silver queda pendiente de validación.
+![Databricks](https://img.shields.io/badge/Databricks-FF3621?logo=databricks&logoColor=white) ![PySpark](https://img.shields.io/badge/PySpark-E25A1C?logo=apachespark&logoColor=white) ![Delta Lake](https://img.shields.io/badge/Delta_Lake-00ADD8)
 
-## Ingesta Bronze
+LensData parte de publicaciones de una tienda ficticia en TikTok e Instagram. El trabajo documentado hasta ahora prepara y carga los datos originales para analizar después su rendimiento.
 
-La configuración de rutas, tabla, checkpoint y esquema de entrada está en [config/bronze.json](config/bronze.json). El volumen existente es `workspace.lensdata_bronze.archivos`. Las mediciones se reciben en `recepcion/mediciones/lote_01/`, `lote_02/`, `lote_03/`, `lote_correccion/` y `lote_reenvio/`.
+El proyecto utiliza una muestra sintética de 40 publicaciones y 12 días de mediciones.
 
-1. Ejecutar [01_ingestar_publicaciones.ipynb](notebooks/bronze/01_ingestar_publicaciones.ipynb) para las 40 publicaciones.
-2. Copiar cada CSV de mediciones a su subcarpeta del volumen, sin sobrescribir los ya procesados, y ejecutar [02_ingestar_mediciones.ipynb](notebooks/bronze/02_ingestar_mediciones.ipynb).
-3. Ejecutar [03_validar_mediciones_bronze.ipynb](notebooks/bronze/03_validar_mediciones_bronze.ipynb) para comprobar la tabla. La última celda se ejecuta después de cargar reenvío y corrección.
+## Arquitectura
 
-Auto Loader (`cloudFiles`) usa Structured Streaming para descubrir los CSV nuevos en las subcarpetas. `availableNow=True` procesa los archivos disponibles y termina. El checkpoint persistente recuerda los archivos ya procesados y permite repetir la ejecución sin volver a insertarlos. Bronze mantiene los ocho campos originales como cadenas y `_source_file` con la ruta de `_metadata.file_path`; no aplica deduplicación ni limpieza, ya que de eso nos encargaremos en la siguiente fase.
+```mermaid
+flowchart LR
+    CSV["CSV por lotes<br/>Volumen de Unity Catalog"] --> AL["Auto Loader<br/>availableNow"]
+    AL --> B["Bronze · Delta Lake<br/>Valores originales y procedencia"]
+    AL --> CP["Checkpoint persistente"]
+```
 
-## Estado comprobado
+Los archivos de mediciones se conservan en `recepcion/mediciones/lote_XX/`. Bronze almacena los campos como cadenas y registra `_metadata.file_path` en `_source_file`.
 
-La usuaria validó manualmente la conexión remota con Databricks Connect, la lectura recursiva, las cabeceras, la ingesta de los lotes 01–03 y la repetición sin archivos nuevos. Las salidas guardadas del notebook antes de su limpieza muestran **13 CSV**, **471 filas** y **471 → 471** en la repetición. Esos 13 archivos incluyen `lote_03/video_desconocido.csv`, con una fila. El reenvío y la corrección aún no figuran en esa relación de archivos.
+## Resultados comprobados
 
-Queda por ejecutar la carga de `lote_reenvio` y `lote_correccion`, comprobar los tres registros de `tiktok/V000/2026-11-01`, verificar el formato Delta y guardar capturas reales. El procedimiento y las comprobaciones pendientes están en [desarrollo.md](desarrollo.md).
+| Comprobación | Resultado |
+| --- | --- |
+| Archivos recibidos | 13 CSV de los lotes 01–03, incluido `video_desconocido.csv` |
+| Filas en Bronze | 471 |
+| Repetición sin archivos nuevos | 471 → 471 filas |
+
+Los resultados proceden de las ejecuciones guardadas del notebook. La carga mantiene la procedencia de cada archivo y conserva el registro del vídeo desconocido.
+
+![Validación de cabeceras de los lotes recibidos](img/f07-carga-cabeceras-lote-03.png)
+
+![Repetición de la ingesta sin filas nuevas](img/f08-prueba-idempotencia.png)
+
+## Tecnologías
+
+| Herramienta | Uso en el proyecto |
+| --- | --- |
+| Databricks y Unity Catalog | Volumen de recepción y tablas Bronze |
+| Databricks Connect y VS Code | Desarrollo y ejecución remota de notebooks |
+| PySpark y Auto Loader | Lectura recursiva e ingesta incremental de CSV |
+| Delta Lake | Almacenamiento de las tablas Bronze |
+
+## Archivos del trabajo realizado
+
+| Ruta | Contenido |
+| --- | --- |
+| [`config/bronze.json`](config/bronze.json) | Rutas, tablas, checkpoints y esquemas de entrada |
+| [`data/sample/`](data/sample/) | Publicaciones y lotes CSV de prueba |
+| [`01_ingestar_publicaciones.ipynb`](notebooks/bronze/01_ingestar_publicaciones.ipynb) | Carga de publicaciones en Bronze |
+| [`02_ingestar_mediciones.ipynb`](notebooks/bronze/02_ingestar_mediciones.ipynb) | Ingesta incremental de mediciones |
+| [`scripts/generar_datos.py`](scripts/generar_datos.py) | Generación reproducible de la muestra |
+| [`desarrollo.md`](desarrollo.md) | Desarrollo y evidencias de las ejecuciones |
