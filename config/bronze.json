@@ -1,37 +1,37 @@
 {
   "catalog": "workspace",
-  "schema": "directdata_bronze",
-  "volume": "workspace.directdata_bronze.archivos",
-  "recepcion_path": "/Volumes/workspace/directdata_bronze/archivos/recepcion",
+  "schema": "lensdata_bronze",
+  "volume": "workspace.lensdata_bronze.archivos",
+  "recepcion_path": "/Volumes/workspace/lensdata_bronze/archivos/recepcion",
   "sources": {
-    "publicaciones": "/Volumes/workspace/directdata_bronze/archivos/recepcion/publicaciones/publicaciones.csv",
-    "mediciones": "/Volumes/workspace/directdata_bronze/archivos/recepcion/lote_01/mediciones_2026-11-01.csv"
+    "publicaciones": "/Volumes/workspace/lensdata_bronze/archivos/recepcion/publicaciones/publicaciones.csv",
+    "mediciones": "/Volumes/workspace/lensdata_bronze/archivos/recepcion/lote_01/mediciones_2026-11-01.csv"
   },
   "tables": {
-    "publicaciones": "workspace.directdata_bronze.publicaciones",
-    "mediciones": "workspace.directdata_bronze.mediciones"
+    "publicaciones": "workspace.lensdata_bronze.publicaciones",
+    "mediciones": "workspace.lensdata_bronze.mediciones"
   },
   "checkpoints": {
-    "publicaciones": "/Volumes/workspace/directdata_bronze/archivos/checkpoints/bronze/publicaciones",
-    "mediciones": "/Volumes/workspace/directdata_bronze/archivos/checkpoints/bronze/mediciones"
+    "publicaciones": "/Volumes/workspace/lensdata_bronze/archivos/checkpoints/bronze/publicaciones",
+    "mediciones": "/Volumes/workspace/lensdata_bronze/archivos/checkpoints/bronze/mediciones"
   },
   "input_schemas": {
     "publicaciones": {
       "plataforma": "string",
       "video_id": "string",
-      "fecha_publicacion": "date",
+      "fecha_publicacion": "string",
       "categoria": "string",
       "titulo": "string"
     },
     "mediciones": {
       "plataforma": "string",
       "video_id": "string",
-      "fecha_medicion": "date",
-      "version_origen": "integer",
-      "reproducciones": "long",
-      "me_gusta": "long",
-      "comentarios": "long",
-      "compartidos": "long"
+      "fecha_medicion": "string",
+      "version_origen": "string",
+      "reproducciones": "string",
+      "me_gusta": "string",
+      "comentarios": "string",
+      "compartidos": "string"
     }
   }
 }
