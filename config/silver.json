@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "bronze_config": "config/bronze.json",
+  "schema": "lensdata_silver",
+  "tables": {
+    "publicaciones": "workspace.lensdata_silver.publicaciones",
+    "mediciones": "workspace.lensdata_silver.mediciones",
+    "rechazados": "workspace.lensdata_silver.rechazados"
+  },
+  "normalization": {
+    "text": "trim_outer_whitespace",
+    "empty_as_null": true,
+    "plataforma": {
+      "transform": "lower(trim)",
+      "allowed": ["tiktok", "instagram"]
+    },
+    "video_id": {
+      "transform": "upper(trim)",
+      "pattern": "^V[0-9]{3}$"
+    },
+    "categoria": {
+      "transform": "lower(trim)",
+      "allowed": ["regalos", "comida asiática", "belleza", "juguetes"]
+    },
+    "date_pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+    "safe_cast": "try_cast"
+  },
+  "entities": {
+    "publicaciones": {
+      "business_key": ["plataforma", "video_id"],
+      "fields": {
+        "plataforma": {"type": "STRING", "required": true},
+        "video_id": {"type": "STRING", "required": true},
+        "fecha_publicacion": {"type": "DATE", "required": true},
+        "categoria": {"type": "STRING", "required": true},
+        "titulo": {"type": "STRING", "required": false}
+      }
+    },
+    "mediciones": {
+      "business_key": ["plataforma", "video_id", "fecha_medicion"],
+      "version_field": "version_origen",
+      "reference": {"entity": "publicaciones", "key": ["plataforma", "video_id"]},
+      "fields": {
+        "plataforma": {"type": "STRING", "required": true},
+        "video_id": {"type": "STRING", "required": true},
+        "fecha_medicion": {"type": "DATE", "required": true},
+        "version_origen": {"type": "INT", "required": true, "minimum": 1},
+        "reproducciones": {"type": "BIGINT", "required": true, "minimum": 0},
+        "me_gusta": {"type": "BIGINT", "required": true, "minimum": 0},
+        "comentarios": {"type": "BIGINT", "required": true, "minimum": 0},
+        "compartidos": {"type": "BIGINT", "required": true, "minimum": 0}
+      }
+    }
+  },
+  "silver_metadata": {
+    "_source_file": "STRING",
+    "_processed_at": "TIMESTAMP",
+    "_quality_warnings": "ARRAY<STRING>"
+  },
+  "rules": [
+    {"code": "REQUIRED_FIELD", "class": "quality_error", "action": "reject"},
+    {"code": "INVALID_PLATFORM", "class": "quality_error", "action": "reject"},
+    {"code": "INVALID_VIDEO_ID", "class": "quality_error", "action": "reject"},
+    {"code": "INVALID_CATEGORY", "class": "quality_error", "action": "reject"},
+    {"code": "INVALID_DATE", "class": "quality_error", "action": "reject"},
+    {"code": "INVALID_NUMBER", "class": "quality_error", "action": "reject"},
+    {"code": "NEGATIVE_METRIC", "class": "quality_error", "action": "reject"},
+    {"code": "INVALID_VERSION", "class": "quality_error", "action": "reject"},
+    {"code": "UNKNOWN_VIDEO", "class": "quality_error", "action": "reject"},
+    {"code": "MEASUREMENT_BEFORE_PUBLICATION", "class": "quality_error", "action": "reject"},
+    {"code": "METRIC_EXCEEDS_VIEWS", "class": "business_warning", "action": "keep"},
+    {"code": "DUPLICATE_BUSINESS_KEY", "class": "business_warning", "action": "keep_for_version_resolution"}
+  ],
+  "structural_errors": ["CSV_HEADER_MISMATCH", "CSV_WRONG_FIELD_COUNT", "CSV_UNREADABLE"],
+  "rejections": {
+    "fields": {
+      "entity": "STRING",
+      "reason_codes": "ARRAY<STRING>",
+      "reason_details": "ARRAY<STRING>",
+      "raw_record": "STRING",
+      "source_file": "STRING",
+      "processed_at": "TIMESTAMP"
+    },
+    "retain_bronze": true
+  }
+}
