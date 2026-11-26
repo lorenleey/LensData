@@ -80,15 +80,13 @@ El conteo de una fila para `video_desconocido.csv` y la comprobación posterior 
 
 La ingesta no filtró los valores vacíos, `pendiente`, negativos, duplicados ni claves desconocidas: su tratamiento se hizo en Silver. La prueba de idempotencia capturada corresponde al estado de 471 filas, antes de recibir los dos archivos adicionales.
 
-### `_ingested_at` y `schemaLocation`
+### Esquema y checkpoint
 
-No añadí `_ingested_at` a la tabla ya cargada. La forma conservadora de incorporarlo más adelante es parar la consulta, añadir una columna nullable `TIMESTAMP` a la tabla Delta, modificar el stream para proyectar `current_timestamp()` y reanudarlo con **el mismo** checkpoint. Los registros existentes permanecerían y tendrían `NULL` en esa columna; su hora real de ingesta no puede reconstruirse a partir de la hora de una ejecución nueva. Antes de aplicar el cambio, validar en Databricks la compatibilidad de la evolución de esquema con el runtime y hacer una prueba con un archivo nuevo. No se ha ejecutado esta migración.
-
-Se proporciona un `StructType` explícito para los ocho campos. `cloudFiles.schemaLocation` sirve para guardar la información de inferencia y evolución de esquema; no se utiliza en este flujo de esquema fijo y el notebook ya se ejecutó sin esa opción. El checkpoint de escritura sigue siendo obligatorio y persistente. Si se decide permitir evolución de columnas de origen, habrá que definir expresamente esa política y su ubicación de esquema.
+La ingesta utiliza un `StructType` explícito para los ocho campos, conserva `_source_file` y mantiene el checkpoint persistente de escritura. El esquema fijo permite ejecutar Auto Loader sin `cloudFiles.schemaLocation`.
 
 ## Fases 04 y 05 · Reglas de calidad y transformación Silver
 
-Definí los esquemas tipados y las reglas en [config/silver.json](config/silver.json). El contrato distingue errores estructurales, rechazos de calidad y advertencias; sus ejemplos y decisiones están en [tarea04_reglas_silver.md](docs/calidad_datos.md). En [silver_quality.py](scripts/silver_quality.py) utilicé `try_cast` para fechas, versión y métricas, con separación de filas válidas y rechazadas sin modificar Bronze.
+Definí los esquemas tipados y las reglas en [config/silver.json](config/silver.json). El contrato distingue errores estructurales, rechazos de calidad y advertencias; sus ejemplos y decisiones están en [contrato de calidad](docs/calidad_datos.md). En [silver_quality.py](scripts/silver_quality.py) utilicé `try_cast` para fechas, versión y métricas, con separación de filas válidas y rechazadas sin modificar Bronze.
 
 El notebook [01_transformar_silver.ipynb](docs/historico/01_transformar_silver.ipynb) leyó las tablas Bronze y escribió las tablas Silver de publicaciones, mediciones y rechazados en `workspace.lensdata_silver`. La captura de configuración muestra las rutas de origen y destino y la de escritura confirma la creación de las tablas derivadas.
 
@@ -104,7 +102,7 @@ La ejecución guardada contó 40 publicaciones Bronze: 40 válidas y 0 rechazada
 
 La clave de negocio de mediciones es (`plataforma`, `video_id`, `fecha_medicion`). En [deduplicar_mediciones.py](scripts/deduplicar_mediciones.py) agrupé por clave y `version_origen` para distinguir reenvíos idénticos de métricas contradictorias. Una Window Function calcula la versión máxima por clave; otra selecciona una copia representativa cuando las filas son idénticas. El orden de lectura no decide qué versión prevalece.
 
-En la ejecución guardada de [02_resolver_versiones.ipynb](tests/test_versiones.ipynb), las 469 mediciones válidas produjeron **467 candidatas**, **1 reenvío idéntico** y **0 filas en conflicto real**. Para `tiktok/V000/2026-11-01`, el original y el reenvío conservaron v1 con 1000 reproducciones; la candidata fue la corrección v2 con 950 y su `_source_file` de `lote_correccion`.
+En la ejecución guardada de [test_versiones.ipynb](tests/test_versiones.ipynb), las 469 mediciones válidas produjeron **467 candidatas**, **1 reenvío idéntico** y **0 filas en conflicto real**. Para `tiktok/V000/2026-11-01`, el original y el reenvío conservaron v1 con 1000 reproducciones; la candidata fue la corrección v2 con 950 y su `_source_file` de `lote_correccion`.
 
 ![Original, reenvío y corrección de una misma medición](img/f11-reenvio-correccion.png)
 
@@ -112,11 +110,11 @@ La última celda añadió en memoria una copia v1 tardía y otra v2 con métrica
 
 ![Prueba en memoria de versión tardía y conflicto de versión](img/f11-version-antigua.png)
 
-`dropDuplicates` por clave no bastaría: podría conservar v1 y descartar v2 según la fila encontrada. La regla compara las métricas de cada versión y ordena explícitamente por `version_origen`. La salida de esta tarea permanece como DataFrame de solo lectura; no se ha ejecutado `MERGE`.
+`dropDuplicates` por clave no bastaría: podría conservar v1 y descartar v2 según la fila encontrada. La regla compara las métricas de cada versión y ordena explícitamente por `version_origen`. La función devuelve DataFrames de solo lectura que se utilizan como entrada de la consolidación.
 
-## Revisión técnica previa a la tarea 8
+## Validación de publicaciones y separación de tablas
 
-Detecté que el notebook Silver ejecutado reconstruía `workspace.lensdata_silver.mediciones` con `overwrite`. La conservo como tabla **intermedia de mediciones válidas** y reservé `workspace.lensdata_silver.mediciones_vigentes` como destino distinto para una futura actualización incremental. Ninguna de las comprobaciones de esta revisión creó o modificó esa tabla definitiva.
+La transformación reconstruye `workspace.lensdata_silver.mediciones` con `overwrite` como tabla intermedia de mediciones válidas. La consolidación escribe en una tabla definitiva independiente, `workspace.lensdata_silver.mediciones_vigentes`.
 
 También detecté que una advertencia de clave duplicada no impedía aceptar dos publicaciones con la misma clave y que `min(fecha_publicacion)` podía ocultar un conflicto. En [silver_quality.py](scripts/silver_quality.py) eliminé ese mínimo: las copias idénticas quedan fuera del conjunto válido y se registran con `IDENTICAL_PUBLICATION_COPY`; si el contenido difiere, ambas filas se rechazan con `CONFLICTING_PUBLICATION`. Una medición que referencia esa clave recibe `AMBIGUOUS_PUBLICATION`, en vez de una fecha elegida arbitrariamente.
 
@@ -124,4 +122,59 @@ El [notebook Silver validado](notebooks/silver/01_transformar_silver.ipynb) apli
 
 ## Reorganización del repositorio
 
-Los notebooks operativos quedan en `notebooks/` y las comprobaciones manuales en `tests/`. La primera transformación Silver se conserva como evidencia histórica en `docs/historico/`, no como notebook ejecutable. Las imágenes, configuraciones, tablas y checkpoints no cambian. La migración de scripts a un paquete Python se aplaza hasta integrar el MERGE local.
+Los notebooks operativos quedan en `notebooks/` y las comprobaciones manuales en `tests/`. La primera transformación Silver se conserva como evidencia histórica en `docs/historico/`, no como notebook ejecutable. Las imágenes, configuraciones, tablas y checkpoints no cambian.
+
+## Tarea 8 · Consolidación incremental con Delta MERGE
+
+Implementé [merge_mediciones.py](scripts/merge_mediciones.py) y el [notebook de consolidación](notebooks/silver/02_merge_mediciones.ipynb). Antes de escribir, se comprueba por archivo que el número de filas Bronze coincide con la suma de filas válidas y rechazadas. El registro `archivos_procesados` selecciona las rutas sin confirmar; la función de resolución de versiones entrega una candidata única por clave.
+
+![Arquitectura de la consolidación Silver](img/f12-arquitectura-hasta-ahora.png)
+
+| Tabla Silver | Responsabilidad |
+|---|---|
+| `mediciones_vigentes` | Una medición vigente por plataforma, vídeo y fecha |
+| `conflictos_version` | Conflictos de métricas para una misma clave y versión |
+| `archivos_procesados` | Rutas confirmadas y recuentos de filas Bronze |
+
+![Organización de las tablas Silver](img/f12-capas-silver.png)
+
+El MERGE inserta claves nuevas y actualiza las existentes únicamente cuando la versión de origen es superior a la vigente. Las versiones iguales o inferiores no sustituyen el destino. Los conflictos se registran con un identificador determinista y los archivos se confirman después de escribir el destino. Bronze y su checkpoint permanecen intactos.
+
+La creación inicial de tablas se realiza con `CREATE TABLE IF NOT EXISTS ... USING DELTA`, que sustituyó el modo `errorifexists` incompatible con la ejecución mediante Databricks Connect.
+
+### Ejecución y resultados
+
+| Indicador | Resultado observado |
+|---|---:|
+| Archivos procesados | 15 |
+| Candidatas | 467 |
+| Reenvíos idénticos en el lote | 1 |
+| Filas de versiones superadas | 2 |
+| Conflictos dentro del lote | 0 |
+| Conflictos con el destino | 0 |
+
+Las categorías de reenvío y versión superada pueden solaparse. El notebook verificó la unicidad de la clave, la procedencia no nula y las versiones positivas, y consultó el historial Delta.
+
+![Resultado de la carga incremental](img/f12-carga-incremental-merge.png)
+
+![Validación posterior de la consolidación](img/f12-validacion-posterior.png)
+
+### Pruebas de integración
+
+En [test_merge.ipynb](tests/test_merge.ipynb) utilicé tablas Delta independientes y datos simulados para comprobar los siguientes comportamientos:
+
+| Escenario | Resultado |
+|---|---|
+| Inserción | Una fila nueva, versión 1 |
+| Reenvío idéntico | Conserva la fila original |
+| Corrección | Actualiza a versión 2, con 90 reproducciones |
+| Versión antigua tardía | Conserva versión 2 |
+| Conflicto con el destino | Registra el conflicto y conserva 90 reproducciones |
+| Repetición idempotente | Conserva la corrección sin cambios |
+| Conflicto dentro del lote | Registra dos filas conflictivas y conserva versión 2 |
+
+Las pruebas incluyen aserciones de unicidad y de métricas de inserción y actualización del historial Delta cuando están disponibles. Los conflictos simulados pertenecen a las tablas de prueba, no a las mediciones reales.
+
+![Primera parte de las pruebas de MERGE](img/f12-test-merge1.png)
+
+![Segunda parte de las pruebas de MERGE](img/f12-test-merge2.png)

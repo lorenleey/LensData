@@ -1,6 +1,6 @@
 # Arquitectura y transformación
 
-CSV → Auto Loader → Bronze → Silver intermedia → resolución de versiones → MERGE (pendiente) → Gold (pendiente).
+CSV → Auto Loader → Bronze → Silver intermedia → resolución de versiones → Delta MERGE → Silver vigente.
 
 # Tarea 5 · Transformación de Bronze a Silver
 
@@ -8,7 +8,7 @@ Implementación en [`scripts/silver_quality.py`](../scripts/silver_quality.py) y
 
 El notebook lee las dos tablas Bronze definidas en `config/bronze.json`, aplica las reglas aprobadas de `config/silver.json` y separa publicaciones, mediciones y rechazados. Las filas aceptadas conservan `_source_file`, incorporan `_processed_at` y registran advertencias en `_quality_warnings`. Los rechazos conservan un JSON de los valores Bronze, la ruta completa, todos los códigos de error y la fecha de procesamiento. Los duplicados de clave permanecen como advertencia; esta tarea no selecciona una versión definitiva ni ejecuta `MERGE`.
 
-La escritura reconstruye **solo las tres tablas Silver intermedias** mediante `overwrite`. `workspace.lensdata_silver.mediciones_vigentes` queda reservada como tabla definitiva y no se escribe aquí. El notebook histórico `01_transformar_silver.ipynb` conserva sus salidas; el contrato actualizado se ejecuta con [`03_transformar_silver_validado.ipynb`](../notebooks/silver/01_transformar_silver.ipynb). Al volver a ejecutar la transformación, `_processed_at` cambiará; no es el timestamp de ingesta Bronze. No ejecutar si las tablas intermedias contienen datos ajenos al flujo, porque serían reemplazadas. Bronze y sus checkpoints no se modifican.
+La escritura reconstruye **solo las tres tablas Silver intermedias** mediante `overwrite`. `workspace.lensdata_silver.mediciones_vigentes` es la tabla definitiva y se escribe exclusivamente durante la consolidación. El notebook histórico `01_transformar_silver.ipynb` conserva sus salidas; el contrato actualizado se ejecuta con [`01_transformar_silver.ipynb`](../notebooks/silver/01_transformar_silver.ipynb). Al volver a ejecutar la transformación, `_processed_at` cambiará; no es el timestamp de ingesta Bronze. No ejecutar si las tablas intermedias contienen datos ajenos al flujo, porque serían reemplazadas. Bronze y sus checkpoints no se modifican.
 
 ## Validación en Databricks
 
@@ -23,7 +23,7 @@ La muestra y la salida Bronze posterior incluyen 473 mediciones en 15 archivos. 
 
 # Tarea 7 · Deduplicación y resolución de versiones
 
-La clave de negocio es (`plataforma`, `video_id`, `fecha_medicion`). La implementación está en [`scripts/deduplicar_mediciones.py`](../scripts/deduplicar_mediciones.py) y el notebook de prueba, de solo lectura, en [`02_resolver_versiones.ipynb`](../tests/test_versiones.ipynb). No crea tablas ni ejecuta `MERGE`.
+La clave de negocio es (`plataforma`, `video_id`, `fecha_medicion`). La implementación está en [`scripts/deduplicar_mediciones.py`](../scripts/deduplicar_mediciones.py) y el notebook de prueba, de solo lectura, en [`test_versiones.ipynb`](../tests/test_versiones.ipynb). No crea tablas ni ejecuta `MERGE`.
 
 ## Criterio de selección
 
@@ -41,3 +41,11 @@ Las salidas son DataFrames `candidatas`, `reenvios`, `conflictos` y `superadas`.
 El notebook exige los registros de `lote_01`, `lote_reenvio` y `lote_correccion` en la tabla Silver. Verifica que el reenvío v1 es idéntico al original, que la candidata es la corrección v2 con 950 reproducciones y que `_source_file` apunta a `correccion_dia_1.csv`. Después crea en memoria una copia v1 tardía y un conflicto de métricas en v2. Comprueba que la copia tardía no sustituye a v2 y que el conflicto bloquea la candidatura de esa clave.
 
 Las salidas guardadas del notebook muestran 469 filas Silver, 467 candidatas, un reenvío idéntico y ningún conflicto real. La prueba en memoria de versión tardía y conflicto terminó con sus aserciones correctas; el conflicto simulado no se escribió. No hay en Bronze una marca de llegada fiable por fila para demostrar el orden real de recepción: la llegada tardía se simuló en memoria y la regla no depende del orden.
+
+## Consolidación incremental
+
+La función [procesar_incremental](../scripts/merge_mediciones.py) valida la cobertura de Silver por archivo, selecciona las rutas sin confirmar y resuelve las versiones de las mediciones válidas. El destino `mediciones_vigentes` conserva la clave de negocio, los campos tipados y la trazabilidad, incluyendo `_merged_at`.
+
+Las escrituras siguen el orden conflictos → MERGE definitivo → confirmación en `archivos_procesados`. El MERGE actualiza únicamente si la versión entrante es superior e inserta claves nuevas. Los conflictos de igual versión se identifican mediante un hash de sus atributos y procedencia. El proceso presupone archivos de recepción inmutables y un único escritor; las tres escrituras Delta no constituyen una transacción conjunta. El reprocesamiento explícito selecciona rutas concretas y no reinicia Bronze.
+
+La ejecución registrada procesó 15 archivos con 467 candidatas y ningún conflicto real. El [notebook de integración](../tests/test_merge.ipynb) verificó siete escenarios de inserción, actualización, reenvío, conflicto e idempotencia.
