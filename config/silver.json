@@ -6,7 +6,16 @@
     "publicaciones": "workspace.lensdata_silver.publicaciones",
     "mediciones": "workspace.lensdata_silver.mediciones",
     "mediciones_vigentes": "workspace.lensdata_silver.mediciones_vigentes",
-    "rechazados": "workspace.lensdata_silver.rechazados"
+    "rechazados": "workspace.lensdata_silver.rechazados",
+    "archivos_procesados": "workspace.lensdata_silver.archivos_procesados",
+    "conflictos_version": "workspace.lensdata_silver.conflictos_version"
+  },
+  "incremental_merge": {
+    "target": "mediciones_vigentes",
+    "ledger": "archivos_procesados",
+    "conflicts": "conflictos_version",
+    "same_version_conflict": "SAME_KEY_VERSION_DIFFERENT_METRICS",
+    "same_version_target_conflict": "SAME_VERSION_DIFFERS_FROM_TARGET"
   },
   "normalization": {
     "text": "trim_outer_whitespace",
