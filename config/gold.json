@@ -1,0 +1,10 @@
+{
+  "silver_config": "config/silver.json",
+  "schema": "workspace.lensdata_gold",
+  "dia_objetivo": 3,
+  "tables": {
+    "rendimiento_video": "workspace.lensdata_gold.rendimiento_video",
+    "rendimiento_categoria": "workspace.lensdata_gold.rendimiento_categoria",
+    "rendimiento_plataforma": "workspace.lensdata_gold.rendimiento_plataforma"
+  }
+}

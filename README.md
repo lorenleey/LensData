@@ -2,7 +2,7 @@
 
 ![Databricks](https://img.shields.io/badge/Databricks-FF3621?logo=databricks&logoColor=white) ![PySpark](https://img.shields.io/badge/PySpark-E25A1C?logo=apachespark&logoColor=white) ![Delta Lake](https://img.shields.io/badge/Delta_Lake-00ADD8)
 
-LensData parte de publicaciones de una tienda ficticia en TikTok e Instagram. El trabajo realizado carga los datos en Bronze, aplica reglas de calidad en Silver y consolida las mediciones vigentes por vídeo y fecha mediante Delta MERGE.
+LensData parte de publicaciones de una tienda ficticia en TikTok e Instagram, al haber trabajado desde hace meses con creación de contenido para una tienda, el problema surge de la pregunta, ¿Y si analizamos las métricas de reacciones en redes sociales y fueramos capaces de predecir qué tipo de contenido le va mejor, cuándo y cómo?. El trabajo realizado carga los datos en Bronze, aplica reglas de calidad en Silver y consolida las mediciones vigentes por vídeo y fecha mediante Delta MERGE.
 
 El proyecto utiliza una muestra sintética de 40 publicaciones y 12 días de mediciones.
 
