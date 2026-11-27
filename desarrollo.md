@@ -270,6 +270,8 @@ Modificación de los notebooks en `databricks.yml`
       project_root: ${workspace.file_path}
 ```
 
+## Activar y desplegar bundle 
+
 A continuación validamos el bundle ejecutando
 
 ```bash
@@ -288,3 +290,16 @@ databricks bundle deploy -t dev
 ``` 
 
 ![despliegue del bundle](img/f15-despliegue-bundle.png)
+
+### Run lakeflow
+
+Al entrar en la interfaz online de databricks se visualiza el lakeflow creado
+
+![lensDataJob](img/f16-lensdatajob-databricks.png)
+
+Al darle al botón de arriba a la derecha `Run now`, se empiezan a ejecutar nuestro flujo de Jobs. Luego de 4 minutos finalizó y podemos visualizar cuanto duró en cada notebook, y que fue ejecutado con estado `Succeeded`.
+
+![Runned](img/f16-ejecucion-lakeflow.png)
+
+
+
