@@ -238,8 +238,12 @@ Estos resultados corresponden a los datos sintéticos que generamos y cargamos d
 
 En [test_gold.ipynb](tests/test_gold.ipynb) utilizamos datos controlados en memoria para comprobar el cálculo del día 3, la cobertura, la tasa ponderada (25 interacciones y 400 reproducciones = 6,25 %), los vídeos con cero reproducciones y los grupos sin mediciones. También se comprueba que las claves duplicadas de publicaciones y mediciones provocan un error.
 
-![Comprobaciones de integridad de claves](img/f14-test-integridad.png)
+![comprobaciones de integridad de claves](img/f14-test-integridad.png)
 
 Después leemos las tablas originales de Silver y las tablas Gold almacenadas. Se utiliza `exceptAll` en ambos sentidos para comprobar que no haya filas diferentes entre Gold y su reconstrucción desde Silver. También se comprueban las claves únicas y los conteos de cobertura. La reconciliación devolvió 467, 8 y 2 filas respectivamente, sin diferencias.
 
-![Reconciliación de las tablas Silver y Gold](img/f14-test-reconciliacion.png)
+![reconciliación de las tablas Silver y Gold](img/f14-test-reconciliacion.png)
+
+Posteriormente, calculamos los indicadores directamente desde Silver mediante consultas SQL y los comparamos con los resultados de Gold generados mediante PySpark, demostrando que coinciden a la perfección.
+
+![validación con tablas de silver con sql](img/f14-test-validacion-sql-silver.png)
