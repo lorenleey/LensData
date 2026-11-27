@@ -2,7 +2,9 @@
 
 ![Databricks](https://img.shields.io/badge/Databricks-FF3621?logo=databricks&logoColor=white) ![PySpark](https://img.shields.io/badge/PySpark-E25A1C?logo=apachespark&logoColor=white) ![Delta Lake](https://img.shields.io/badge/Delta_Lake-00ADD8)
 
-LensData parte de publicaciones de una tienda ficticia en TikTok e Instagram, al haber trabajado desde hace meses con creación de contenido para una tienda, el problema surge de la pregunta, ¿Y si analizamos las métricas de reacciones en redes sociales y fueramos capaces de predecir qué tipo de contenido le va mejor, cuándo y cómo?. El trabajo realizado carga los datos en Bronze, aplica reglas de calidad en Silver y consolida las mediciones vigentes por vídeo y fecha mediante Delta MERGE.
+LensData parte de publicaciones de una tienda ficticia en TikTok e Instagram. Después de varios meses trabajando en la creación de contenido para una tienda, me surgió una pregunta: ¿qué tipo de contenido funciona mejor en cada red social?
+
+Para comparar las categorías en las mismas condiciones, analizo las interacciones por cada 100 reproducciones al tercer día de vida de cada vídeo. El pipeline carga los datos en Bronze, los limpia y consolida en Silver mediante Delta MERGE y calcula las métricas de negocio en Gold.
 
 El proyecto utiliza una muestra sintética de 40 publicaciones y 12 días de mediciones.
 
@@ -19,6 +21,8 @@ flowchart LR
     M --> V["Silver · Mediciones vigentes"]
     M --> C["Registro de conflictos y archivos"]
     S --> Q["Rechazados"]
+    V --> G["Gold · Métricas por vídeo, categoría y plataforma"]
+    S -->|Publicaciones válidas| G
 ```
 
 Los archivos de mediciones se conservan en `recepcion/mediciones/lote_XX/`, `lote_reenvio/` y `lote_correccion/`. Bronze almacena los campos como cadenas y registra `_metadata.file_path` en `_source_file`. Silver conserva los rechazos con su motivo y procedencia.
@@ -34,12 +38,27 @@ Los archivos de mediciones se conservan en `recepcion/mediciones/lote_XX/`, `lot
 | Mediciones Silver intermedias | 469 válidas, 4 rechazadas |
 | Consolidación Silver | 467 candidatas, 15 archivos procesados, 1 reenvío idéntico, 0 conflictos reales |
 | Pruebas de MERGE | 7 escenarios de integración ejecutados |
+| Gold | 467 mediciones por vídeo, 8 combinaciones de categoría y plataforma, 2 plataformas |
+| Cobertura al tercer día | 38 de 40 publicaciones |
 
 Los resultados proceden de las salidas guardadas de los notebooks y las capturas de ejecución. La corrección v2 de `tiktok/V000/2026-11-01` quedó seleccionada frente al original y su reenvío v1. Las pruebas de integración comprobaron inserción, corrección, reenvíos, versiones antiguas, conflictos e idempotencia sobre tablas Delta de prueba.
 
 ![Validación y recuento de registros rechazados en Silver](img/f10-validacion-rechazos.png)
 
 ![Ejecución de la consolidación incremental de Silver](img/f12-carga-incremental-merge.png)
+
+## Análisis de interacción
+
+Las tablas Gold permiten consultar la evolución de cada vídeo y comparar categorías y plataformas al tercer día, sin sumar métricas acumuladas de fechas distintas.
+
+| Plataforma | Vídeos medidos | Reproducciones | Interacciones | Tasa de interacción |
+| --- | ---: | ---: | ---: | ---: |
+| Instagram | 20/20 | 3612 | 243 | 6,73 % |
+| TikTok | 18/20 | 3607 | 243 | 6,74 % |
+
+En esta muestra sintética, comida asiática obtiene la mayor tasa de interacción en ambas plataformas (7,00 % en Instagram y 7,02 % en TikTok). En TikTok se midieron cuatro de los cinco vídeos de esa categoría al tercer día, por lo que también hay que considerar la cobertura.
+
+![Comparación de categorías al tercer día](img/f13-tabla-rendimiento-categoria.png)
 
 ## Tecnologías
 
@@ -48,7 +67,7 @@ Los resultados proceden de las salidas guardadas de los notebooks y las capturas
 | Databricks y Unity Catalog | Volumen de recepción y tablas Bronze |
 | Databricks Connect y VS Code | Desarrollo y ejecución remota de notebooks |
 | PySpark y Auto Loader | Lectura recursiva e ingesta incremental de CSV |
-| Delta Lake | Almacenamiento de Bronze y Silver |
+| Delta Lake | Almacenamiento de Bronze, Silver y Gold |
 | Window Functions | Selección de la versión válida más reciente por clave |
 | Delta MERGE | Inserciones y actualizaciones condicionadas por versión |
 
@@ -62,13 +81,14 @@ Los resultados proceden de las salidas guardadas de los notebooks y las capturas
 | [`02_ingestar_mediciones.ipynb`](notebooks/bronze/02_ingestar_mediciones.ipynb) | Ingesta incremental de mediciones |
 | [`01_transformar_silver.ipynb`](notebooks/silver/01_transformar_silver.ipynb) | Tipado, reglas de calidad y rechazos |
 | [`02_merge_mediciones.ipynb`](notebooks/silver/02_merge_mediciones.ipynb) | Consolidación incremental y control de archivos |
-| [`tests/`](tests/) | Validaciones de calidad, versiones e integración MERGE |
+| [`01_generar_gold.ipynb`](notebooks/gold/01_generar_gold.ipynb) | Métricas por vídeo, categoría y plataforma |
+| [`tests/`](tests/) | Validaciones de calidad, versiones, MERGE y reconciliación Gold |
 | [`test_versiones.ipynb`](tests/test_versiones.ipynb) | Pruebas de reenvío, corrección y conflicto |
 | [`scripts/generar_datos.py`](scripts/generar_datos.py) | Generación reproducible de la muestra |
 | [`desarrollo.md`](desarrollo.md) | Desarrollo y evidencias de las ejecuciones |
 
 ## Ejecución y pruebas
 
-Ejecutar los notebooks de Bronze en orden, seguidos de `notebooks/silver/01_transformar_silver.ipynb` y `notebooks/silver/02_merge_mediciones.ipynb`. Los notebooks de `tests/` contienen comprobaciones manuales con Spark y se ejecutan por separado.
+Ejecutar los notebooks de Bronze en orden, seguidos de `notebooks/silver/01_transformar_silver.ipynb` y `notebooks/silver/02_merge_mediciones.ipynb`. Por último, ejecutar `notebooks/gold/01_generar_gold.ipynb`. Los notebooks de `tests/` contienen comprobaciones manuales con Spark y se ejecutan por separado.
 
 Consulta el [contrato de calidad](docs/calidad_datos.md), el [diseño técnico](docs/arquitectura.md) y la [propuesta](docs/propuesta.md).

@@ -178,3 +178,68 @@ Las pruebas incluyen aserciones de unicidad y de métricas de inserción y actua
 ![Primera parte de las pruebas de MERGE](img/f12-test-merge1.png)
 
 ![Segunda parte de las pruebas de MERGE](img/f12-test-merge2.png)
+
+
+## Tarea 9 · Capa Gold
+
+Una vez consolidadas las mediciones en Silver, utilicé las tablas `publicaciones` y `mediciones_vigentes` para crear las tres tablas de análisis en `workspace.lensdata_gold`. La idea es comparar qué categorías funcionan mejor sin contar varias veces las mediciones de un mismo vídeo y fecha.
+
+En [gold_metrics.py](scripts/gold_metrics.py) uní las publicaciones y las mediciones por `plataforma` y `video_id`, ya que el identificador de un vídeo se puede repetir entre TikTok e Instagram. Calculé el día de vida con `datediff(fecha_medicion, fecha_publicacion) + 1` y sumé los me gusta, comentarios y compartidos para obtener las interacciones.
+
+```python
+F.datediff("fecha_medicion", "fecha_publicacion") + 1
+```
+
+El día de publicación cuenta como día 1. Para las comparaciones de categorías y plataformas utilicé exclusivamente el día 3. La tasa de interacción se obtiene dividiendo las interacciones entre las reproducciones y multiplicando por 100. En las agregaciones divido la suma de las interacciones entre la suma de las reproducciones de los vídeos con reproducciones positivas, en lugar de hacer una media de porcentajes. Si un vídeo tiene cero reproducciones, su tasa es nula.
+
+### Creación de tablas
+
+Ejecuté [01_generar_gold.ipynb](notebooks/gold/01_generar_gold.ipynb) con la configuración de [gold.json](config/gold.json). Las tablas se escriben en formato Delta con `overwrite`, ya que son resultados derivados que se recalculan a partir de Silver vigente.
+
+| Tabla | Granularidad | Filas |
+|---|---|---:|
+| `rendimiento_video` | Plataforma, vídeo y fecha de medición | 467 |
+| `rendimiento_categoria` | Plataforma y categoría al día 3 | 8 |
+| `rendimiento_plataforma` | Plataforma al día 3 | 2 |
+
+![Creación de tablas Delta Gold](img/f13-creacion-tablas-delta.png)
+
+En la tabla por vídeo comprobé que TikTok V000 conserva la corrección v2 de Silver: 950 reproducciones y 70 interacciones el primer día. El segundo día registra 1200 reproducciones y 90 interacciones.
+
+![Mediciones por vídeo](img/f13-tabla-videos.png)
+
+### Comparación de categorías y plataformas
+
+| Plataforma | Categoría | Vídeos medidos | Cobertura | Tasa de interacción |
+|---|---|---:|---:|---:|
+| Instagram | Comida asiática | 5/5 | 100 % | 7,00 % |
+| Instagram | Juguetes | 5/5 | 100 % | 6,70 % |
+| Instagram | Belleza | 5/5 | 100 % | 6,70 % |
+| Instagram | Regalos | 5/5 | 100 % | 6,32 % |
+| TikTok | Comida asiática | 4/5 | 80 % | 7,02 % |
+| TikTok | Belleza | 5/5 | 100 % | 6,70 % |
+| TikTok | Juguetes | 5/5 | 100 % | 6,64 % |
+| TikTok | Regalos | 4/5 | 80 % | 6,59 % |
+
+![Rendimiento por categoría](img/f13-tabla-rendimiento-categoria.png)
+
+Comida asiática obtuvo la mayor tasa de interacción en las dos redes dentro de la muestra. Sin embargo, TikTok tiene dos vídeos sin medición del tercer día, uno de regalos y otro de comida asiática. Por eso incluí el tamaño de muestra y la cobertura: no quería comparar porcentajes sin saber cuántas publicaciones los respaldan.
+
+| Plataforma | Vídeos medidos | Reproducciones | Interacciones | Tasa | Cobertura |
+|---|---:|---:|---:|---:|---:|
+| Instagram | 20/20 | 3612 | 243 | 6,73 % | 100 % |
+| TikTok | 18/20 | 3607 | 243 | 6,74 % | 90 % |
+
+![Rendimiento por plataforma](img/f13-tabla-rendimiento-plataforma.png)
+
+Estos resultados corresponden a datos sintéticos, no a las métricas reales de una tienda.
+
+### Pruebas de Gold
+
+En [test_gold.ipynb](tests/test_gold.ipynb) utilicé datos controlados en memoria para comprobar el cálculo del día 3, la cobertura, la tasa ponderada (25 interacciones y 400 reproducciones = 6,25 %), los vídeos con cero reproducciones y los grupos sin mediciones. También comprobé que las claves duplicadas de publicaciones y mediciones provocan un error.
+
+![Comprobaciones de integridad de claves](img/f14-test-integridad.png)
+
+Después leí las tablas originales de Silver y las tablas Gold persistidas. Comparé los resultados con una reconstrucción de Gold mediante `exceptAll` en ambos sentidos y comprobé la unicidad y los conteos de cobertura. La reconciliación devolvió 467, 8 y 2 filas respectivamente, sin diferencias.
+
+![Reconciliación de las tablas Silver y Gold](img/f14-test-reconciliacion.png)
