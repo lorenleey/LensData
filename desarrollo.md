@@ -1,24 +1,24 @@
-# Desarrollo · LensData
+# Desarrollo - LensData
 
 ## Preparación del entorno y publicaciones
 
 Preparamos el entorno Python y el kernel local para ejecutar notebooks desde VS Code.
 
-![Instalación del entorno y registro del kernel de LensData](img/create-kernel.png)
+![instalación del entorno y registro del kernel de LensData](img/create-kernel.png)
 
-Se comprueba el acceso al CSV de publicaciones desde el volumen. Esta captura refleja la organización inicial de recepción, anterior a la carpeta definitiva de mediciones.
+Se comprueba el acceso al CSV de publicaciones desde el volumen. Esta captura refleja la organización inicial de recepción, anterior a la carpeta definitiva de mediciones, decisión tomando posteriormente para mejor visualización de la arquitectura.
 
-![Acceso a los archivos de recepción desde Databricks](img/f02-acceso-archivos.png)
+![acceso a los archivos de recepción desde Databricks](img/f02-acceso-archivos.png)
 
 La primera lectura del CSV nos permite familiarizarnos con las columnas y los datos que vamos a procesar; el notebook Bronze usa el esquema de cadenas de `bronze.json`.
 
-![Lectura exploratoria del CSV de publicaciones](img/f03-lectura-csv-esquema.png)
+![lectura exploratoria del CSV de publicaciones](img/f03-lectura-csv-esquema.png)
 
 Desde VS Code se comprueban las 40 publicaciones, el valor original `Regalos ` y la procedencia. En esta ejecución, `_source_file` muestra la ruta del volumen con prefijo `dbfs:`.
 
-![Comprobaciones de publicaciones Bronze desde VS Code](img/f04-comprobaciones-notebook-vs.png)
+![comprobaciones de publicaciones Bronze desde VS Code](img/f04-comprobaciones-notebook-vs.png)
 
-## Fase 03 · Ingesta de mediciones en Bronze
+## Fase 03 - Ingesta de mediciones en Bronze
 
 > Estado observado: 15 CSV cargados en Bronze, incluidos reenvío y corrección.
 
@@ -84,7 +84,7 @@ La ingesta no filtró los valores vacíos, `pendiente`, negativos, duplicados ni
 
 La ingesta utiliza un `StructType` explícito para los ocho campos, conserva `_source_file` y mantiene el checkpoint persistente de escritura. El esquema fijo permite ejecutar Auto Loader sin `cloudFiles.schemaLocation`.
 
-## Fases 04 y 05 · Reglas de calidad y transformación Silver
+## Fases 04 y 05 - Reglas de calidad y transformación Silver
 
 Definimos los tipos de datos y las reglas en [config/silver.json](config/silver.json). El contrato distingue errores estructurales, rechazos de calidad y advertencias; sus ejemplos y decisiones están en [contrato de calidad](docs/calidad_datos.md). En [silver_quality.py](scripts/silver_quality.py) se utiliza `try_cast` para convertir fechas, versión y métricas. Se separan las filas válidas de las rechazadas sin modificar Bronze.
 
@@ -98,7 +98,7 @@ La ejecución guardada contó 40 publicaciones Bronze: 40 válidas y 0 rechazada
 
 ![Conteos de Silver y motivos de los cuatro rechazos](img/f10-validacion-rechazos.png)
 
-## Tarea 7 · Deduplicación y resolución de versiones
+## Tarea 7 - Deduplicación y resolución de versiones
 
 La clave de negocio de mediciones es (`plataforma`, `video_id`, `fecha_medicion`). En [deduplicar_mediciones.py](scripts/deduplicar_mediciones.py) agrupamos por clave y `version_origen` para distinguir reenvíos idénticos de métricas contradictorias. Una Window Function calcula la versión máxima por clave; otra selecciona una copia representativa cuando las filas son idénticas. El orden de lectura no decide qué versión prevalece.
 
@@ -124,7 +124,7 @@ El [notebook Silver validado](notebooks/silver/01_transformar_silver.ipynb) apli
 
 Los notebooks operativos quedan en `notebooks/` y las comprobaciones manuales en `tests/`. La primera transformación Silver se conserva como evidencia histórica en `docs/historico/`, no como notebook ejecutable. Las imágenes, configuraciones, tablas y checkpoints no cambian.
 
-## Tarea 8 · Consolidación incremental con Delta MERGE
+## Tarea 8 - Consolidación incremental con Delta MERGE
 
 La consolidación se realiza mediante [merge_mediciones.py](scripts/merge_mediciones.py) y el [notebook de consolidación](notebooks/silver/02_merge_mediciones.ipynb). Antes de escribir, se comprueba por archivo que el número de filas Bronze coincide con la suma de filas válidas y rechazadas. El registro `archivos_procesados` selecciona las rutas sin confirmar; la función de resolución de versiones entrega una candidata única por clave.
 
@@ -180,7 +180,7 @@ Las pruebas incluyen aserciones de unicidad y de métricas de inserción y actua
 ![segunda parte de las pruebas de MERGE](img/f12-test-merge2.png)
 
 
-## Tarea 9 · Capa Gold
+## Tarea 9 - Capa Gold
 
 Una vez consolidadas las mediciones en Silver, utilizamos las tablas `publicaciones` y `mediciones_vigentes` para crear las tres tablas de análisis en `workspace.lensdata_gold`. La idea es comparar qué categorías funcionan mejor sin contar varias veces las mediciones de un mismo vídeo y fecha, aprovechando la ingesta incremental con Auto Loader y la consolidación de versiones con MERGE.
 
@@ -247,3 +247,44 @@ Después leemos las tablas originales de Silver y las tablas Gold almacenadas. S
 Posteriormente, calculamos los indicadores directamente desde Silver mediante consultas SQL y los comparamos con los resultados de Gold generados mediante PySpark, demostrando que coinciden a la perfección.
 
 ![validación con tablas de silver con sql](img/f14-test-validacion-sql-silver.png)
+
+## Tarea 10 - Lakeflow 
+
+### Preparación de entorno
+Hasta ahora, se ejecutaba cada notebook con el ordenador manualmente buscando los archivos de configuración mediante Path.cwd(). Ahora nuestra idea es desplegar la transformación en un entorno laboral, que encuentre de por si Databricks los scripts y configuraciones dentro del workspace remoto. El script `preparar_lakeflow.py" hace justamente eso, adapta los notebooks de las capas para recibir la ruta del proyecto com un parámetro, por lo que también se pueden ejecutar desde VS Code aún.
+No modifica la lógica de transformación ni las tablas.
+
+![preparación-notebooks](img/f15-preparacion-notebooks.png)
+
+Modificación de los notebooks en `databricks.yml`
+
+```yaml
+- task_key: silver_transformar
+
+  depends_on:
+    - task_key: bronze_mediciones
+
+  notebook_task:
+    notebook_path: ../notebooks/silver/01_transformar_silver.ipynb
+    base_parameters:
+      project_root: ${workspace.file_path}
+```
+
+A continuación validamos el bundle ejecutando
+
+```bash
+databricks auth profiles
+databricks bundle validate -t dev
+``` 
+
+Y como era de esperado, recibimos un `Validation OK!`
+
+![validación del bundle](img/f15-validacion-bundle.png)
+
+Una vez validado, se despegó el budle, esto crea o actualiza el job y sincroniza los archivos necesarios del proyecto. Todavía no ejecuta el pipeline.
+
+``` bash
+databricks bundle deploy -t dev
+``` 
+
+![despliegue del bundle](img/f15-despliegue-bundle.png)
