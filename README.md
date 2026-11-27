@@ -4,10 +4,11 @@
 
 LensData parte de publicaciones de una tienda ficticia en TikTok e Instagram. Después de varios meses trabajando en la creación de contenido para una tienda, me surgió una pregunta: ¿qué tipo de contenido funciona mejor en cada red social?
 
-Para comparar las categorías en las mismas condiciones, analizo las interacciones por cada 100 reproducciones al tercer día de vida de cada vídeo. El pipeline carga los datos en Bronze, los limpia y consolida en Silver mediante Delta MERGE y calcula las métricas de negocio en Gold.
+Para comparar las categorías en las mismas condiciones, analizamos las interacciones por cada 100 reproducciones al tercer día de vida de cada vídeo. El pipeline carga los datos en Bronze, los limpia y consolida en Silver mediante Delta MERGE y calcula las métricas de negocio en Gold.
 
 El proyecto utiliza una muestra sintética de 40 publicaciones y 12 días de mediciones.
-Para el presente trabajo se utilizó la versión gratuita de Databricks, serverless ya que nos ofrece los servicios básicos para demostrar las fases esperadas del lensData, y más importante, responder nuestras preguntas de negocio
+
+Para el desarrollo utilizamos Databricks Free Edition con cómputo serverless, ya que nos permite trabajar con las herramientas necesarias para construir el pipeline y responder nuestras preguntas de negocio.
 
 ## Arquitectura
 
@@ -28,7 +29,7 @@ flowchart LR
 
 Los archivos de mediciones se conservan en `recepcion/mediciones/lote_XX/`, `lote_reenvio/` y `lote_correccion/`. Bronze almacena los campos como cadenas y registra `_metadata.file_path` en `_source_file`. Silver conserva los rechazos con su motivo y procedencia.
 
-## Resultados comprobados
+## Resultados y validaciones
 
 | Comprobación | Resultado |
 | --- | --- |
@@ -39,10 +40,10 @@ Los archivos de mediciones se conservan en `recepcion/mediciones/lote_XX/`, `lot
 | Mediciones Silver intermedias | 469 válidas, 4 rechazadas |
 | Consolidación Silver | 467 candidatas, 15 archivos procesados, 1 reenvío idéntico, 0 conflictos reales |
 | Pruebas de MERGE | 7 escenarios de integración ejecutados |
-| Gold | 467 mediciones por vídeo, 8 combinaciones de categoría y plataforma, 2 plataformas |
+| Gold | 467 mediciones por vídeo y fecha, 8 combinaciones de categoría y plataforma, 2 plataformas |
 | Cobertura al tercer día | 38 de 40 publicaciones |
 
-Los resultados proceden de las salidas guardadas de los notebooks y las capturas de ejecución. La corrección v2 de `tiktok/V000/2026-11-01` quedó seleccionada frente al original y su reenvío v1. Las pruebas de integración comprobaron inserción, corrección, reenvíos, versiones antiguas, conflictos e idempotencia sobre tablas Delta de prueba.
+En las pruebas del pipeline se comprueba que la corrección v2 de `tiktok/V000/2026-11-01` prevalece sobre el original y su reenvío v1. Las pruebas de integración comprobaron inserción, corrección, reenvíos, versiones antiguas, conflictos e idempotencia sobre tablas Delta de prueba.
 
 ![Validación y recuento de registros rechazados en Silver](img/f10-validacion-rechazos.png)
 
@@ -65,7 +66,7 @@ En esta muestra sintética, comida asiática obtiene la mayor tasa de interacci�
 
 | Herramienta | Uso en el proyecto |
 | --- | --- |
-| Databricks y Unity Catalog | Volumen de recepción y tablas Bronze |
+| Databricks y Unity Catalog | Volumen de recepción y tablas de las tres capas |
 | Databricks Connect y VS Code | Desarrollo y ejecución remota de notebooks |
 | PySpark y Auto Loader | Lectura recursiva e ingesta incremental de CSV |
 | Delta Lake | Almacenamiento de Bronze, Silver y Gold |

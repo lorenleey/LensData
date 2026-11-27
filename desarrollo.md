@@ -2,7 +2,7 @@
 
 ## Preparación del entorno y publicaciones
 
-Preparé el entorno Python y el kernel local para ejecutar notebooks desde VS Code.
+Preparamos el entorno Python y el kernel local para ejecutar notebooks desde VS Code.
 
 ![Instalación del entorno y registro del kernel de LensData](img/create-kernel.png)
 
@@ -10,11 +10,11 @@ Se comprueba el acceso al CSV de publicaciones desde el volumen. Esta captura re
 
 ![Acceso a los archivos de recepción desde Databricks](img/f02-acceso-archivos.png)
 
-Leí el CSV y revisé sus columnas y primeras filas. Esta lectura fue exploratoria es principalmente para familiarizarnos con las columnas y lo esperado; el notebook Bronze usa el esquema de cadenas de `bronze.json`.
+La primera lectura del CSV nos permite familiarizarnos con las columnas y los datos que vamos a procesar; el notebook Bronze usa el esquema de cadenas de `bronze.json`.
 
 ![Lectura exploratoria del CSV de publicaciones](img/f03-lectura-csv-esquema.png)
 
-Desde VS Code comprobé las 40 publicaciones, el valor original `Regalos ` y la procedencia. En esta ejecución, `_source_file` muestra la ruta del volumen con prefijo `dbfs:`.
+Desde VS Code se comprueban las 40 publicaciones, el valor original `Regalos ` y la procedencia. En esta ejecución, `_source_file` muestra la ruta del volumen con prefijo `dbfs:`.
 
 ![Comprobaciones de publicaciones Bronze desde VS Code](img/f04-comprobaciones-notebook-vs.png)
 
@@ -24,7 +24,7 @@ Desde VS Code comprobé las 40 publicaciones, el valor original `Regalos ` y la 
 
 ### Preparación y funcionamiento
 
-Se logró trabajar desde VS Code con Databricks Connect para ejecutar celdas en el entorno remoto de Databricks. Esta conexión permite editar el notebook localmente y usar `spark` contra los recursos del workspace; no convierte los CSV locales en archivos del volumen. Por ello, cada lote debe copiarse al volumen `workspace.lensdata_bronze.archivos` bajo `recepcion/mediciones/<nombre_del_lote>/` en la interfaz de databricks.
+Utilizamos Databricks Connect desde VS Code para ejecutar celdas en el entorno remoto de Databricks. Esta conexión permite editar el notebook localmente y usar `spark` contra los recursos del workspace; no convierte los CSV locales en archivos del volumen. Por ello, cada lote debe copiarse al volumen `workspace.lensdata_bronze.archivos` bajo `recepcion/mediciones/<nombre_del_lote>/` desde la interfaz de Databricks.
 
 ![Configuración de rutas del notebook desde VS Code](img/f04-path-databricks-vs.png)
 
@@ -38,11 +38,11 @@ La validación inicial comprobó una cabecera. Tras recibir el lote 03, la búsq
 
 El destino es una tabla Delta en modo append. El checkpoint de `config/bronze.json` guarda el progreso de la consulta para que los archivos ya procesados no se vuelvan a ingerir. `availableNow=True` procesa lo que está disponible y detiene la consulta; después se puede ejecutar de nuevo con el mismo origen y checkpoint. No se limpian checkpoints ni se sobrescriben archivos de entrada.
 
-Comprobé en el volumen que el checkpoint de mediciones contiene `metadata`, `commits`, `offsets` y `sources`.
+En el volumen se comprueba que el checkpoint de mediciones contiene `metadata`, `commits`, `offsets` y `sources`.
 
 ![Archivos del checkpoint persistente de mediciones](img/f05-checkpoint-creado.png)
 
-La primera carga dejó 40 filas. La captura conserva una ruta inicial en la raíz de `recepcion/mediciones/`; posteriormente organicé las mediciones por lotes. La carga de los lotes 01 y 02 dejó 80 filas, 40 por archivo.
+La primera carga dejó 40 filas. La captura conserva una ruta inicial en la raíz de `recepcion/mediciones/`; después organizamos las mediciones por lotes. La carga de los lotes 01 y 02 dejó 80 filas, 40 por archivo.
 
 ![Primera carga de 40 mediciones](img/f05-primera-ingesta-bronce.png)
 
@@ -50,13 +50,13 @@ La primera carga dejó 40 filas. La captura conserva una ruta inicial en la raí
 
 ![Incremento de 40 a 80 filas](img/f06-totales-comparados.png)
 
-Tras incorporar los archivos del lote 03, la comparación guardada mostró 471 filas. Repetí la carga sin archivos nuevos y el total siguió siendo 471.
+Tras incorporar los archivos del lote 03, la comparación guardada mostró 471 filas. Al repetir la carga sin archivos nuevos, el total sigue siendo 471.
 
 ![Conteos tras incorporar el lote 03](img/f07-totales-comparados.png)
 
 ![Prueba de idempotencia con 471 filas antes y después](img/f08-prueba-idempotencia.png)
 
-Después incorporé `lote_reenvio` y `lote_correccion` en sus propias subcarpetas. La validación recursiva encontró 15 cabeceras correctas. Las comprobaciones de Bronze confirmaron 473 filas, 15 archivos de procedencia y la conservación separada del original, el reenvío, la corrección y `V999`.
+Después incorporamos `lote_reenvio` y `lote_correccion` en sus propias subcarpetas. La validación recursiva encontró 15 cabeceras correctas. Las comprobaciones de Bronze confirmaron 473 filas, 15 archivos de procedencia y la conservación separada del original, el reenvío, la corrección y `V999`.
 
 ![Cabeceras de los 15 CSV, incluidos reenvío y corrección](img/f09-cabeceras-lote-reenvio-correccion.png)
 
@@ -68,7 +68,7 @@ Estas cifras proceden de las salidas guardadas en el notebook antes de retirar l
 
 | Comprobación | Resultado observado |
 |---|---|
-| Conexión Databricks Connect | Validé manualmente la conexión desde VS Code. |
+| Conexión Databricks Connect | Conexión validada desde VS Code. |
 | Cabeceras y descubrimiento recursivo | Salida guardada: 13 CSV verificados bajo los lotes 01, 02 y 03. |
 | Conteo Bronze | Salida guardada: 471 filas = 40 + 40 + 10 × 39 + 1 de `video_desconocido.csv`. |
 | Procedencia | Salida guardada: conteos por 13 rutas `_source_file`, incluidas las subcarpetas de los tres lotes. |
@@ -86,7 +86,7 @@ La ingesta utiliza un `StructType` explícito para los ocho campos, conserva `_s
 
 ## Fases 04 y 05 · Reglas de calidad y transformación Silver
 
-Definí los esquemas tipados y las reglas en [config/silver.json](config/silver.json). El contrato distingue errores estructurales, rechazos de calidad y advertencias; sus ejemplos y decisiones están en [contrato de calidad](docs/calidad_datos.md). En [silver_quality.py](scripts/silver_quality.py) utilicé `try_cast` para fechas, versión y métricas, con separación de filas válidas y rechazadas sin modificar Bronze.
+Definimos los tipos de datos y las reglas en [config/silver.json](config/silver.json). El contrato distingue errores estructurales, rechazos de calidad y advertencias; sus ejemplos y decisiones están en [contrato de calidad](docs/calidad_datos.md). En [silver_quality.py](scripts/silver_quality.py) se utiliza `try_cast` para convertir fechas, versión y métricas. Se separan las filas válidas de las rechazadas sin modificar Bronze.
 
 El notebook [01_transformar_silver.ipynb](docs/historico/01_transformar_silver.ipynb) leyó las tablas Bronze y escribió las tablas Silver de publicaciones, mediciones y rechazados en `workspace.lensdata_silver`. La captura de configuración muestra las rutas de origen y destino y la de escritura confirma la creación de las tablas derivadas.
 
@@ -100,7 +100,7 @@ La ejecución guardada contó 40 publicaciones Bronze: 40 válidas y 0 rechazada
 
 ## Tarea 7 · Deduplicación y resolución de versiones
 
-La clave de negocio de mediciones es (`plataforma`, `video_id`, `fecha_medicion`). En [deduplicar_mediciones.py](scripts/deduplicar_mediciones.py) agrupé por clave y `version_origen` para distinguir reenvíos idénticos de métricas contradictorias. Una Window Function calcula la versión máxima por clave; otra selecciona una copia representativa cuando las filas son idénticas. El orden de lectura no decide qué versión prevalece.
+La clave de negocio de mediciones es (`plataforma`, `video_id`, `fecha_medicion`). En [deduplicar_mediciones.py](scripts/deduplicar_mediciones.py) agrupamos por clave y `version_origen` para distinguir reenvíos idénticos de métricas contradictorias. Una Window Function calcula la versión máxima por clave; otra selecciona una copia representativa cuando las filas son idénticas. El orden de lectura no decide qué versión prevalece.
 
 En la ejecución guardada de [test_versiones.ipynb](tests/test_versiones.ipynb), las 469 mediciones válidas produjeron **467 candidatas**, **1 reenvío idéntico** y **0 filas en conflicto real**. Para `tiktok/V000/2026-11-01`, el original y el reenvío conservaron v1 con 1000 reproducciones; la candidata fue la corrección v2 con 950 y su `_source_file` de `lote_correccion`.
 
@@ -116,7 +116,7 @@ La última celda añadió en memoria una copia v1 tardía y otra v2 con métrica
 
 La transformación reconstruye `workspace.lensdata_silver.mediciones` con `overwrite` como tabla intermedia de mediciones válidas. La consolidación escribe en una tabla definitiva independiente, `workspace.lensdata_silver.mediciones_vigentes`.
 
-También detecté que una advertencia de clave duplicada no impedía aceptar dos publicaciones con la misma clave y que `min(fecha_publicacion)` podía ocultar un conflicto. En [silver_quality.py](scripts/silver_quality.py) eliminé ese mínimo: las copias idénticas quedan fuera del conjunto válido y se registran con `IDENTICAL_PUBLICATION_COPY`; si el contenido difiere, ambas filas se rechazan con `CONFLICTING_PUBLICATION`. Una medición que referencia esa clave recibe `AMBIGUOUS_PUBLICATION`, en vez de una fecha elegida arbitrariamente.
+Durante las pruebas detectamos que una advertencia de clave duplicada no impedía aceptar dos publicaciones con la misma clave y que `min(fecha_publicacion)` podía ocultar un conflicto. En [silver_quality.py](scripts/silver_quality.py) se elimina ese mínimo: las copias idénticas quedan fuera del conjunto válido y se registran con `IDENTICAL_PUBLICATION_COPY`; si el contenido difiere, ambas filas se rechazan con `CONFLICTING_PUBLICATION`. Una medición que referencia esa clave recibe `AMBIGUOUS_PUBLICATION`, en vez de una fecha elegida arbitrariamente.
 
 El [notebook Silver validado](notebooks/silver/01_transformar_silver.ipynb) aplica el contrato actualizado sin escribir en `mediciones_vigentes`. El [notebook de prueba](tests/test_silver_quality.ipynb) prepara en memoria una copia idéntica, un conflicto de fecha y una medición de referencia ambigua. Las salidas guardadas de la transformación validada muestran 40 publicaciones válidas, 469 mediciones válidas y 4 rechazadas; la prueba de publicaciones únicas confirma los tres casos simulados. La reorganización conserva esas salidas y no implica una nueva ejecución.
 
@@ -126,7 +126,7 @@ Los notebooks operativos quedan en `notebooks/` y las comprobaciones manuales en
 
 ## Tarea 8 · Consolidación incremental con Delta MERGE
 
-Implementé [merge_mediciones.py](scripts/merge_mediciones.py) y el [notebook de consolidación](notebooks/silver/02_merge_mediciones.ipynb). Antes de escribir, se comprueba por archivo que el número de filas Bronze coincide con la suma de filas válidas y rechazadas. El registro `archivos_procesados` selecciona las rutas sin confirmar; la función de resolución de versiones entrega una candidata única por clave.
+La consolidación se realiza mediante [merge_mediciones.py](scripts/merge_mediciones.py) y el [notebook de consolidación](notebooks/silver/02_merge_mediciones.ipynb). Antes de escribir, se comprueba por archivo que el número de filas Bronze coincide con la suma de filas válidas y rechazadas. El registro `archivos_procesados` selecciona las rutas sin confirmar; la función de resolución de versiones entrega una candidata única por clave.
 
 ![Arquitectura de la consolidación Silver](img/f12-arquitectura-hasta-ahora.png)
 
@@ -161,7 +161,7 @@ Las categorías de reenvío y versión superada pueden solaparse. El notebook ve
 
 ### Pruebas de integración
 
-En [test_merge.ipynb](tests/test_merge.ipynb) utilicé tablas Delta independientes y datos simulados para comprobar los siguientes comportamientos:
+En [test_merge.ipynb](tests/test_merge.ipynb) utilizamos tablas Delta independientes y datos simulados para comprobar los siguientes comportamientos:
 
 | Escenario | Resultado |
 |---|---|
@@ -182,19 +182,19 @@ Las pruebas incluyen aserciones de unicidad y de métricas de inserción y actua
 
 ## Tarea 9 · Capa Gold
 
-Una vez consolidadas las mediciones en Silver, utilizamos las tablas `publicaciones` y `mediciones_vigentes` para crear las tres tablas de análisis en `workspace.lensdata_gold`. La idea es comparar qué categorías funcionan mejor sin contar varias veces las mediciones de un mismo vídeo y fecha, todo esto va a ser logrado gracias a la implementación de MERGE y AutoLoader.
+Una vez consolidadas las mediciones en Silver, utilizamos las tablas `publicaciones` y `mediciones_vigentes` para crear las tres tablas de análisis en `workspace.lensdata_gold`. La idea es comparar qué categorías funcionan mejor sin contar varias veces las mediciones de un mismo vídeo y fecha, aprovechando la ingesta incremental con Auto Loader y la consolidación de versiones con MERGE.
 
-En [gold_metrics.py](scripts/gold_metrics.py) uní las publicaciones y las mediciones por `plataforma` y `video_id`, ya que el identificador de un vídeo se puede repetir entre TikTok e Instagram. Se calcula el día de vida con `datediff(fecha_medicion, fecha_publicacion) + 1` y se suman los me gusta, comentarios y compartidos para obtener las interacciones totales del video.
+En [gold_metrics.py](scripts/gold_metrics.py) unimos las publicaciones y las mediciones por `plataforma` y `video_id`, ya que el identificador de un vídeo se puede repetir entre TikTok e Instagram. Se calcula el día de vida con `datediff(fecha_medicion, fecha_publicacion) + 1` y se suman los me gusta, comentarios y compartidos para obtener las interacciones totales del vídeo.
 
 ```python
 F.datediff("fecha_medicion", "fecha_publicacion") + 1
 ```
 
-El día de publicación cuenta como día 1. Para las comparaciones de categorías y plataformas utilicé exclusivamente el día 3, esto porque considero que allí ya ha pasado suficiente tiempo como para tener interacciones para analizar. La tasa de interacción se obtiene dividiendo las interacciones entre las reproducciones y multiplicando por 100. En las agregaciones divido la suma de las interacciones entre la suma de las reproducciones de los vídeos con reproducciones positivas, en lugar de hacer una media de porcentajes. Si un vídeo tiene cero reproducciones, su tasa es nula.
+El día de publicación cuenta como día 1. Elegimos el día 3 como punto de comparación entre categorías y plataformas, porque consideramos que es un plazo razonable para acumular interacciones. Así comparamos vídeos con la misma antigüedad. La tasa de interacción se obtiene dividiendo las interacciones entre las reproducciones y multiplicando por 100. En las agregaciones dividimos la suma de las interacciones entre la suma de las reproducciones de los vídeos con reproducciones positivas, en lugar de hacer una media de porcentajes. Si un vídeo tiene cero reproducciones, su tasa es nula.
 
 ### Creación de tablas
 
-Ejecuté [01_generar_gold.ipynb](notebooks/gold/01_generar_gold.ipynb) con la configuración de [gold.json](config/gold.json). Las tablas se escriben en formato Delta con `overwrite`, ya que son resultados derivados que se recalculan a partir de Silver vigente.
+Ejecutamos [01_generar_gold.ipynb](notebooks/gold/01_generar_gold.ipynb) con la configuración de [gold.json](config/gold.json). Las tablas se escriben en formato Delta con `overwrite`, ya que son resultados derivados que se recalculan a partir de Silver vigente.
 
 | Tabla | Granularidad | Filas |
 |---|---|---:|
@@ -223,7 +223,7 @@ En la tabla por vídeo se comprueba que TikTok V000 conserva la corrección v2 d
 
 ![Rendimiento por categoría](img/f13-tabla-rendimiento-categoria.png)
 
-Comida asiática obtuvo la mayor tasa de interacción en las dos redes dentro de la muestra. Sin embargo, TikTok tiene dos vídeos sin medición del tercer día, uno de regalos y otro de comida asiática. Por eso mismo incluí el tamaño de muestra y la cobertura: no quería comparar porcentajes sin saber cuántas publicaciones los respaldan.
+Comida asiática obtuvo la mayor tasa de interacción en las dos redes dentro de la muestra. Sin embargo, TikTok tiene dos vídeos sin medición del tercer día, uno de regalos y otro de comida asiática. Por eso incluimos el tamaño de muestra y la cobertura: además del porcentaje de interacción, interesa saber cuántas publicaciones se han podido medir.
 
 | Plataforma | Vídeos medidos | Reproducciones | Interacciones | Tasa | Cobertura |
 |---|---:|---:|---:|---:|---:|
@@ -232,14 +232,14 @@ Comida asiática obtuvo la mayor tasa de interacción en las dos redes dentro de
 
 ![Rendimiento por plataforma](img/f13-tabla-rendimiento-plataforma.png)
 
-Estos resultados corresponden a los datos sintéticos creados que extraimos de los csv.
+Estos resultados corresponden a los datos sintéticos que generamos y cargamos desde los CSV.
 
 ### Pruebas de Gold
 
-En [test_gold.ipynb](tests/test_gold.ipynb) utilicé datos controlados en memoria para comprobar el cálculo del día 3, la cobertura, la tasa ponderada (25 interacciones y 400 reproducciones = 6,25 %), los vídeos con cero reproducciones y los grupos sin mediciones. También comprobé que las claves duplicadas de publicaciones y mediciones provocan un error.
+En [test_gold.ipynb](tests/test_gold.ipynb) utilizamos datos controlados en memoria para comprobar el cálculo del día 3, la cobertura, la tasa ponderada (25 interacciones y 400 reproducciones = 6,25 %), los vídeos con cero reproducciones y los grupos sin mediciones. También se comprueba que las claves duplicadas de publicaciones y mediciones provocan un error.
 
 ![Comprobaciones de integridad de claves](img/f14-test-integridad.png)
 
-Después leí las tablas originales de Silver y las tablas Gold persistidas. Comparé los resultados con una reconstrucción de Gold mediante `exceptAll` en ambos sentidos y comprobé la unicidad y los conteos de cobertura. La reconciliación devolvió 467, 8 y 2 filas respectivamente, sin diferencias.
+Después leemos las tablas originales de Silver y las tablas Gold almacenadas. Se utiliza `exceptAll` en ambos sentidos para comprobar que no haya filas diferentes entre Gold y su reconstrucción desde Silver. También se comprueban las claves únicas y los conteos de cobertura. La reconciliación devolvió 467, 8 y 2 filas respectivamente, sin diferencias.
 
 ![Reconciliación de las tablas Silver y Gold](img/f14-test-reconciliacion.png)

@@ -15,6 +15,9 @@ Antes de modificar `README.md`, revisar los README de los proyectos Libris y mod
 
 ## desarrollo.md
 
+- Alternar de forma natural la primera persona singular para decisiones personales, el plural ("utilizamos", "comparamos") para explicar el proceso y las construcciones impersonales ("se comprueba", "se crea") para validaciones y operaciones. No forzar siempre una misma voz.
+- Mantener un tono profesional, técnico y sencillo, propio de una estudiante que explica lo que ha aprendido y realizado. Explicar qué se hace, cómo y por qué con frases claras, ejemplos breves y vocabulario accesible; evitar formalismos, repeticiones y jerga innecesaria. Aplicar también al README, conservando las correcciones y motivaciones personales de la autora.
+
 - Documentar fases y tareas, decisiones y motivos, conceptos nuevos, fragmentos de código relevantes, incidencias y soluciones, validaciones reales, capturas y limitaciones.
 - Documentar resultados observados y distinguir pruebas simuladas de datos reales. Situar las capturas del proceso junto al paso que prueban.
 - No duplicar el README: este archivo es el registro técnico y académico; el README es la presentación breve del proyecto.
