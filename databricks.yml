@@ -1,9 +1,16 @@
-# This is a Declarative Automation Bundle definition for lensData.
-# The Databricks extension requires databricks.yml configuration file.
-# See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
-
 bundle:
   name: lensData
+
+include:
+  - resources/*.yml
+
+sync:
+  exclude:
+    - img/**
+    - data/**
+    - docs/**
+    - .venv/**
+    - uv.lock
 
 targets:
   dev:
@@ -11,9 +18,5 @@ targets:
     default: true
     workspace:
       host: https://dbc-29c533e9-7e42.cloud.databricks.com
-
-  ## Optionally, there could be 'staging' or 'prod' targets here.
-  #
-  # prod:
-  #   workspace:
-  #     host: https://dbc-29c533e9-7e42.cloud.databricks.com
+    presets:
+      jobs_max_concurrent_runs: 1
