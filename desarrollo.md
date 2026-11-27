@@ -256,7 +256,7 @@ No modifica la lógica de transformación ni las tablas.
 
 ![preparación-notebooks](img/f15-preparacion-notebooks.png)
 
-Modificación de los notebooks en `databricks.yml`
+Modificación de los notebooks en `resources/lensdata_job.yml`
 
 ```yaml
 - task_key: silver_transformar
