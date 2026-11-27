@@ -6,11 +6,11 @@ Preparé el entorno Python y el kernel local para ejecutar notebooks desde VS Co
 
 ![Instalación del entorno y registro del kernel de LensData](img/create-kernel.png)
 
-Comprobé el acceso al CSV de publicaciones desde el volumen. Esta captura refleja la organización inicial de recepción, anterior a la carpeta definitiva de mediciones.
+Se comprueba el acceso al CSV de publicaciones desde el volumen. Esta captura refleja la organización inicial de recepción, anterior a la carpeta definitiva de mediciones.
 
 ![Acceso a los archivos de recepción desde Databricks](img/f02-acceso-archivos.png)
 
-Leí el CSV y revisé sus columnas y primeras filas. Esta lectura fue exploratoria; el notebook Bronze usa el esquema de cadenas de `bronze.json`.
+Leí el CSV y revisé sus columnas y primeras filas. Esta lectura fue exploratoria es principalmente para familiarizarnos con las columnas y lo esperado; el notebook Bronze usa el esquema de cadenas de `bronze.json`.
 
 ![Lectura exploratoria del CSV de publicaciones](img/f03-lectura-csv-esquema.png)
 
@@ -24,7 +24,7 @@ Desde VS Code comprobé las 40 publicaciones, el valor original `Regalos ` y la 
 
 ### Preparación y funcionamiento
 
-Trabajé desde VS Code con Databricks Connect para ejecutar celdas en el entorno remoto de Databricks. Esta conexión permite editar el notebook localmente y usar `spark` contra los recursos del workspace; no convierte los CSV locales en archivos del volumen. Por ello, cada lote debe copiarse al volumen `workspace.lensdata_bronze.archivos` bajo `recepcion/mediciones/<nombre_del_lote>/`.
+Se logró trabajar desde VS Code con Databricks Connect para ejecutar celdas en el entorno remoto de Databricks. Esta conexión permite editar el notebook localmente y usar `spark` contra los recursos del workspace; no convierte los CSV locales en archivos del volumen. Por ello, cada lote debe copiarse al volumen `workspace.lensdata_bronze.archivos` bajo `recepcion/mediciones/<nombre_del_lote>/` en la interfaz de databricks.
 
 ![Configuración de rutas del notebook desde VS Code](img/f04-path-databricks-vs.png)
 
@@ -175,22 +175,22 @@ En [test_merge.ipynb](tests/test_merge.ipynb) utilicé tablas Delta independient
 
 Las pruebas incluyen aserciones de unicidad y de métricas de inserción y actualización del historial Delta cuando están disponibles. Los conflictos simulados pertenecen a las tablas de prueba, no a las mediciones reales.
 
-![Primera parte de las pruebas de MERGE](img/f12-test-merge1.png)
+![primera parte de las pruebas de MERGE](img/f12-test-merge1.png)
 
-![Segunda parte de las pruebas de MERGE](img/f12-test-merge2.png)
+![segunda parte de las pruebas de MERGE](img/f12-test-merge2.png)
 
 
 ## Tarea 9 · Capa Gold
 
-Una vez consolidadas las mediciones en Silver, utilicé las tablas `publicaciones` y `mediciones_vigentes` para crear las tres tablas de análisis en `workspace.lensdata_gold`. La idea es comparar qué categorías funcionan mejor sin contar varias veces las mediciones de un mismo vídeo y fecha.
+Una vez consolidadas las mediciones en Silver, utilizamos las tablas `publicaciones` y `mediciones_vigentes` para crear las tres tablas de análisis en `workspace.lensdata_gold`. La idea es comparar qué categorías funcionan mejor sin contar varias veces las mediciones de un mismo vídeo y fecha, todo esto va a ser logrado gracias a la implementación de MERGE y AutoLoader.
 
-En [gold_metrics.py](scripts/gold_metrics.py) uní las publicaciones y las mediciones por `plataforma` y `video_id`, ya que el identificador de un vídeo se puede repetir entre TikTok e Instagram. Calculé el día de vida con `datediff(fecha_medicion, fecha_publicacion) + 1` y sumé los me gusta, comentarios y compartidos para obtener las interacciones.
+En [gold_metrics.py](scripts/gold_metrics.py) uní las publicaciones y las mediciones por `plataforma` y `video_id`, ya que el identificador de un vídeo se puede repetir entre TikTok e Instagram. Se calcula el día de vida con `datediff(fecha_medicion, fecha_publicacion) + 1` y se suman los me gusta, comentarios y compartidos para obtener las interacciones totales del video.
 
 ```python
 F.datediff("fecha_medicion", "fecha_publicacion") + 1
 ```
 
-El día de publicación cuenta como día 1. Para las comparaciones de categorías y plataformas utilicé exclusivamente el día 3. La tasa de interacción se obtiene dividiendo las interacciones entre las reproducciones y multiplicando por 100. En las agregaciones divido la suma de las interacciones entre la suma de las reproducciones de los vídeos con reproducciones positivas, en lugar de hacer una media de porcentajes. Si un vídeo tiene cero reproducciones, su tasa es nula.
+El día de publicación cuenta como día 1. Para las comparaciones de categorías y plataformas utilicé exclusivamente el día 3, esto porque considero que allí ya ha pasado suficiente tiempo como para tener interacciones para analizar. La tasa de interacción se obtiene dividiendo las interacciones entre las reproducciones y multiplicando por 100. En las agregaciones divido la suma de las interacciones entre la suma de las reproducciones de los vídeos con reproducciones positivas, en lugar de hacer una media de porcentajes. Si un vídeo tiene cero reproducciones, su tasa es nula.
 
 ### Creación de tablas
 
@@ -204,7 +204,7 @@ Ejecuté [01_generar_gold.ipynb](notebooks/gold/01_generar_gold.ipynb) con la co
 
 ![Creación de tablas Delta Gold](img/f13-creacion-tablas-delta.png)
 
-En la tabla por vídeo comprobé que TikTok V000 conserva la corrección v2 de Silver: 950 reproducciones y 70 interacciones el primer día. El segundo día registra 1200 reproducciones y 90 interacciones.
+En la tabla por vídeo se comprueba que TikTok V000 conserva la corrección v2 de Silver: 950 reproducciones y 70 interacciones el primer día. El segundo día registra 1200 reproducciones y 90 interacciones.
 
 ![Mediciones por vídeo](img/f13-tabla-videos.png)
 
@@ -223,7 +223,7 @@ En la tabla por vídeo comprobé que TikTok V000 conserva la corrección v2 de S
 
 ![Rendimiento por categoría](img/f13-tabla-rendimiento-categoria.png)
 
-Comida asiática obtuvo la mayor tasa de interacción en las dos redes dentro de la muestra. Sin embargo, TikTok tiene dos vídeos sin medición del tercer día, uno de regalos y otro de comida asiática. Por eso incluí el tamaño de muestra y la cobertura: no quería comparar porcentajes sin saber cuántas publicaciones los respaldan.
+Comida asiática obtuvo la mayor tasa de interacción en las dos redes dentro de la muestra. Sin embargo, TikTok tiene dos vídeos sin medición del tercer día, uno de regalos y otro de comida asiática. Por eso mismo incluí el tamaño de muestra y la cobertura: no quería comparar porcentajes sin saber cuántas publicaciones los respaldan.
 
 | Plataforma | Vídeos medidos | Reproducciones | Interacciones | Tasa | Cobertura |
 |---|---:|---:|---:|---:|---:|
@@ -232,7 +232,7 @@ Comida asiática obtuvo la mayor tasa de interacción en las dos redes dentro de
 
 ![Rendimiento por plataforma](img/f13-tabla-rendimiento-plataforma.png)
 
-Estos resultados corresponden a datos sintéticos, no a las métricas reales de una tienda.
+Estos resultados corresponden a los datos sintéticos creados que extraimos de los csv.
 
 ### Pruebas de Gold
 

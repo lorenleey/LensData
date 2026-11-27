@@ -7,6 +7,7 @@ LensData parte de publicaciones de una tienda ficticia en TikTok e Instagram. De
 Para comparar las categorías en las mismas condiciones, analizo las interacciones por cada 100 reproducciones al tercer día de vida de cada vídeo. El pipeline carga los datos en Bronze, los limpia y consolida en Silver mediante Delta MERGE y calcula las métricas de negocio en Gold.
 
 El proyecto utiliza una muestra sintética de 40 publicaciones y 12 días de mediciones.
+Para el presente trabajo se utilizó la versión gratuita de Databricks, serverless ya que nos ofrece los servicios básicos para demostrar las fases esperadas del lensData, y más importante, responder nuestras preguntas de negocio
 
 ## Arquitectura
 
